@@ -1,5 +1,6 @@
 package client
 
+import akka.actor.SupervisorStrategy.Restart
 import akka.actor._
 import akka.routing.RoundRobinPool
 import com.virtuslab.akkaworkshop.Decrypter
@@ -13,7 +14,8 @@ class RequesterActor(remote : ActorRef) extends Actor with ActorLogging{
   val name = "Cesar"
 
   val workersNumber = 5
-  val workers = context.actorOf(RoundRobinPool(workersNumber).props(Worker.props))
+  val restartingStrategy = AllForOneStrategy() { case _: Exception => Restart }
+  val workers = context.actorOf(RoundRobinPool(workersNumber, supervisorStrategy = restartingStrategy).props(Worker.props))
 
   private def decryptPassword(password: String): Try[String] = Try {
     val prepared = decrypter.prepare(password)

@@ -1,45 +1,60 @@
 package client
 
-import akka.actor.{ActorSelection, Props, Actor}
+import akka.actor._
 import com.virtuslab.akkaworkshop.Decrypter
 import com.virtuslab.akkaworkshop.PasswordsDistributor._
 
-class RequesterActor extends Actor {
+import scala.util.Try
 
-  val decrypter = new Decrypter
+class RequesterActor(remote : ActorRef) extends Actor with ActorLogging{
 
-  private def decryptPassword(password: String): String = {
-    val preapared = decrypter.prepare(password)
-    val decoded = decrypter.decode(preapared)
+  var decrypter = new Decrypter
+  val name = "Cesar"
+
+  private def decryptPassword(password: String): Try[String] = Try {
+    val prepared = decrypter.prepare(password)
+    val decoded = decrypter.decode(prepared)
     val decrypted = decrypter.decrypt(decoded)
     decrypted
   }
 
-  // receive with messages that can be sent by the server
-  override def receive: Receive = {
-    case remoteActorSelection: ActorSelection =>
-      // TODO Register yourself by sending Register("your nick") to remote actor from selection
-      // HINT: Using actor ref instead of actor selection is recommended
-      println(s"Got remote actor selection: $remoteActorSelection")
+  override def preStart() = {
+    remote ! Register(name)
+  }
 
+  override def receive: Receive = starting
+
+  def starting: Receive = {
     case Registered(token) =>
-      // TODO You are registered
-      // Now we need to sore ths token and use it to request and check your passwords
-      println(s"Registered! Token: $token")
+      log.info(s"Registered with token $token")
+      remote ! SendMeEncryptedPassword(token)
+      context.become(working(token))
+  }
 
-
-    case EncryptedPassword(encryptedPassword) =>
-      // TODO Decrypt this password using decrypter instance
-      // And send it back using ValidateDecodedPassword(token, encryptedPassword, decryptedPassword)
-      println(s"Password to decrypt: $encryptedPassword")
-
+  def working(token : String): Receive = {
+    case ep@EncryptedPassword(encryptedPassword) =>
+      val decrypted = decryptPassword(encryptedPassword)
+      decrypted.map {
+        decryptedPassword =>
+          remote ! ValidateDecodedPassword(token, encryptedPassword, decryptedPassword)
+      }.getOrElse{
+        decrypter = new Decrypter
+        self ! ep
+      }
 
     case PasswordCorrect(decryptedPassword) =>
-      // TODO ask for more passwords
-      println(s"Correctly decrypted: $decryptedPassword")
+      log.info(s"Password $decryptedPassword was decrypted successfully")
+      remote ! SendMeEncryptedPassword(token)
 
-    case PasswordIncorrect(decryptedPassword, original) =>
-      // TODO ask for more passwords
-      println(s"Incorrectly decrypted: $decryptedPassword from $original")
+    case PasswordIncorrect(decryptedPassword, correctPassword) =>
+      log.error(s"Password $decryptedPassword was not decrypted correctly, should be $correctPassword")
+      remote ! SendMeEncryptedPassword(token)
   }
+
+}
+
+object RequesterActor {
+
+  def props(remote: ActorRef) = Props(classOf[RequesterActor], remote)
+
 }

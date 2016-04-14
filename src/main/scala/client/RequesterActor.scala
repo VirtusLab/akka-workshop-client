@@ -1,31 +1,25 @@
 package client
 
-import akka.actor.SupervisorStrategy.Restart
 import akka.actor._
-import akka.routing.RoundRobinPool
-import com.virtuslab.akkaworkshop.Decrypter
+import akka.routing.RoundRobinGroup
+import client.RequesterActor.RegisterSupervisor
 import com.virtuslab.akkaworkshop.PasswordsDistributor._
 
-import scala.util.Try
+class RequesterActor extends Actor with ActorLogging {
 
-class RequesterActor(remote : ActorRef) extends Actor with ActorLogging{
-
-  var decrypter = new Decrypter
+  var supervisorSet = Set.empty[(ActorRef, Int)]
   val name = "Cesar"
 
-  val workersNumber = 5
-  val restartingStrategy = AllForOneStrategy() { case _: Exception => Restart }
-  val workers = context.actorOf(RoundRobinPool(workersNumber, supervisorStrategy = restartingStrategy).props(Worker.props))
-
-  private def decryptPassword(password: String): Try[String] = Try {
-    val prepared = decrypter.prepare(password)
-    val decoded = decrypter.decode(prepared)
-    val decrypted = decrypter.decrypt(decoded)
-    decrypted
+  def createRouter = {
+    val addresses = supervisorSet.map(_._1.path.toString)
+    context.actorOf(RoundRobinGroup(addresses).props(), s"router_${supervisorSet.size}")
   }
 
   override def preStart() = {
-    remote ! Register(name)
+    val remoteIp = "localhost"
+    val remotePort = 9552
+    val remoteSelection = context.actorSelection(s"akka.tcp://application@$remoteIp:$remotePort/user/PasswordsDistributor")
+    remoteSelection ! Register(name)
   }
 
   override def receive: Receive = starting
@@ -33,14 +27,31 @@ class RequesterActor(remote : ActorRef) extends Actor with ActorLogging{
   def starting: Receive = {
     case Registered(token) =>
       log.info(s"Registered with token $token")
-      remote ! SendMeEncryptedPassword(token)
-      for(_ <- 0 until workersNumber) remote ! SendMeEncryptedPassword(token)
-      context.become(working(token))
+      sender() ! SendMeEncryptedPassword(token)
+
+      val router = createRouter
+      context.become(registered(token, router, sender()))
+
+      for {
+        (supRef, num) <- supervisorSet
+        _ <- 0 until num
+      } sender() ! SendMeEncryptedPassword(token)
+
+    case RegisterSupervisor(ref, num) =>
+      supervisorSet = supervisorSet + (ref -> num)
   }
 
-  def working(token : String): Receive = {
-    case encryptedPassword : EncryptedPassword =>
-      workers ! List(encryptedPassword.encryptedPassword)
+  def registered(token: String, router: ActorRef, remote: ActorRef): Receive = {
+
+    case RegisterSupervisor(ref, num) =>
+      supervisorSet = supervisorSet + (ref -> num)
+      for (_ <- 0 until num) remote ! SendMeEncryptedPassword(token)
+      context.stop(router)
+      val newRouter = createRouter
+      context.become(registered(token, newRouter, remote))
+
+    case encryptedPassword: EncryptedPassword =>
+      router ! encryptedPassword
 
     case ValidateDecodedPassword(_, encrypted, decrypted) =>
       remote ! ValidateDecodedPassword(token, encrypted, decrypted)
@@ -58,6 +69,8 @@ class RequesterActor(remote : ActorRef) extends Actor with ActorLogging{
 
 object RequesterActor {
 
-  def props(remote: ActorRef) = Props(classOf[RequesterActor], remote)
+  def props = Props[RequesterActor]
+
+  case class RegisterSupervisor(actorRef: ActorRef, workerNum: Int)
 
 }

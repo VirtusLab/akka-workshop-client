@@ -1,11 +1,9 @@
 package client
 
 import akka.actor._
+import akka.cluster.singleton.{ClusterSingletonProxySettings, ClusterSingletonProxy, ClusterSingletonManagerSettings, ClusterSingletonManager}
 import akka.util.Timeout
-import scala.concurrent.Await
-import scala.util.{Success, Try}
 import scala.concurrent.duration._
-import akka.pattern.ask
 
 object AkkaApplication extends App {
 
@@ -13,20 +11,19 @@ object AkkaApplication extends App {
 
   val system = ActorSystem("RequesterSystem")
 
-  val remoteIp = "localhost"
-  val remotePort = 9552
+  system.actorOf(ClusterSingletonManager.props(
+    singletonProps = RequesterActor.props,
+    terminationMessage = PoisonPill,
+    settings = ClusterSingletonManagerSettings(system)),
+    name = "consumer"
+  )
 
-  val remoteServer = system.actorSelection(s"akka.tcp://application@$remoteIp:$remotePort/user/PasswordsDistributor")
+  val singleton = system.actorOf(ClusterSingletonProxy.props(
+    singletonManagerPath = "/user/consumer",
+    settings = ClusterSingletonProxySettings(system)),
+    name = "consumerProxy"
+  )
 
-  val remoteServerRef = Try(Await.result((remoteServer ? Identify("123L")).mapTo[ActorIdentity], 10.seconds).ref)
-
-  remoteServerRef match {
-    case Success(Some(ref)) =>
-      system.actorOf(RequesterActor.props(ref), name = "requester")
-
-    case _ =>
-      println(s"Unable to establish connection to $remoteIp:$remotePort")
-      system.terminate()
-  }
+  system.actorOf(Props(classOf[Supervisor], singleton))
 
 }

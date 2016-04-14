@@ -12,6 +12,8 @@ Generally you should follow all sections in a given order although last ones are
 
 Introduction can be found [here](http://virtuslab.github.io/akka-workshop/#/intro).
 
+In case of big trouble connecting to server/leader board you can use [zipped instance](/local-server/workshop-server-1.0.4.zip) to try your code locally. To do so just unpack zip, run bin/workshop-server and use localhost as host-name. 
+
 #### Connect to remote actor: 
 [Presentation](http://virtuslab.github.io/akka-workshop/#/remote)
 
@@ -23,7 +25,7 @@ More can be found in [documentation](http://doc.akka.io/docs/akka/snapshot/scala
 
 Once correctly registered your name should appear at our leader board (at host-name:9000/?mode=remote)
 
-!(leaderboard)[leaderboard.png]
+![](leaderboard.png)
 
 #### Register and process passwords
 [Presentation](http://virtuslab.github.io/akka-workshop/#/register)

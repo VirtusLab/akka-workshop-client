@@ -1,19 +1,32 @@
 package client
 
-import akka.actor.{ActorSelection, Actor, ActorSystem, Props}
-import com.virtuslab.akkaworkshop.Decrypter
-import com.virtuslab.akkaworkshop.PasswordsDistributor._
-import scala.util.Try
+import akka.actor._
+import akka.util.Timeout
+import scala.concurrent.Await
+import scala.util.{Success, Try}
+import scala.concurrent.duration._
+import akka.pattern.ask
 
 object AkkaApplication extends App {
 
+  implicit val timeout = Timeout(10.seconds)
+
   val system = ActorSystem("RequesterSystem")
 
-  val requesterActor = system.actorOf(Props[RequesterActor], name = "requester")
+  val remoteIp = "localhost"
+  val remotePort = 9552
 
-  // Remote actor can be found in: "akka.tcp://application@<host-name>:9552/user/PasswordsDistributor"
-  val selection: ActorSelection = ???
+  val remoteServer = system.actorSelection(s"akka.tcp://application@$remoteIp:$remotePort/user/PasswordsDistributor")
 
-  requesterActor ! selection
+  val remoteServerRef = Try(Await.result((remoteServer ? Identify("123L")).mapTo[ActorIdentity], 10.seconds).ref)
+
+  remoteServerRef match {
+    case Success(Some(ref)) =>
+      system.actorOf(RequesterActor.props(ref), name = "requester")
+
+    case _ =>
+      println(s"Unable to establish connection to $remoteIp:$remotePort")
+      system.terminate()
+  }
 
 }

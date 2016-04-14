@@ -1,6 +1,7 @@
 package client
 
 import akka.actor._
+import akka.routing.RoundRobinPool
 import com.virtuslab.akkaworkshop.Decrypter
 import com.virtuslab.akkaworkshop.PasswordsDistributor._
 
@@ -10,6 +11,9 @@ class RequesterActor(remote : ActorRef) extends Actor with ActorLogging{
 
   var decrypter = new Decrypter
   val name = "Cesar"
+
+  val workersNumber = 5
+  val workers = context.actorOf(RoundRobinPool(workersNumber).props(Worker.props))
 
   private def decryptPassword(password: String): Try[String] = Try {
     val prepared = decrypter.prepare(password)
@@ -28,19 +32,16 @@ class RequesterActor(remote : ActorRef) extends Actor with ActorLogging{
     case Registered(token) =>
       log.info(s"Registered with token $token")
       remote ! SendMeEncryptedPassword(token)
+      for(_ <- 0 until workersNumber) remote ! SendMeEncryptedPassword(token)
       context.become(working(token))
   }
 
   def working(token : String): Receive = {
-    case ep@EncryptedPassword(encryptedPassword) =>
-      val decrypted = decryptPassword(encryptedPassword)
-      decrypted.map {
-        decryptedPassword =>
-          remote ! ValidateDecodedPassword(token, encryptedPassword, decryptedPassword)
-      }.getOrElse{
-        decrypter = new Decrypter
-        self ! ep
-      }
+    case encryptedPassword : EncryptedPassword =>
+      workers ! encryptedPassword
+
+    case ValidateDecodedPassword(_, encrypted, decrypted) =>
+      remote ! ValidateDecodedPassword(token, encrypted, decrypted)
 
     case PasswordCorrect(decryptedPassword) =>
       log.info(s"Password $decryptedPassword was decrypted successfully")

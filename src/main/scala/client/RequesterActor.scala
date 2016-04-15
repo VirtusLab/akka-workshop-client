@@ -25,6 +25,7 @@ class RequesterActor extends Actor {
     case Registered(token) =>
       // TODO You are registered
       // Now we need to sore ths token and use it to request and check your passwords
+      // use SendMeEncryptedPassword(token)
       println(s"Registered! Token: $token")
 
 

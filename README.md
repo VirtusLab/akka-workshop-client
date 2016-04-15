@@ -14,8 +14,8 @@ Introduction can be found [here](http://virtuslab.github.io/akka-workshop/#/intr
 
 In case of big trouble connecting to server/leader board you can use [zipped instance](/local-server/workshop-server-1.0.4.zip) to try your code locally. To do so just unpack zip, run bin/workshop-server and use localhost as host-name. 
 
-#### Connect to remote actor: 
-[Presentation](http://virtuslab.github.io/akka-workshop/#/remote)
+#### Connect and register 
+[Presentation](http://virtuslab.github.io/akka-workshop/#/register)
 
 At the beginning you need to connect to remote actor by creating ActorSelection and send Register message with your name.
 
@@ -27,8 +27,8 @@ Once correctly registered your name should appear at our leader board (at host-n
 
 ![](leaderboard.png)
 
-#### Register and process passwords
-[Presentation](http://virtuslab.github.io/akka-workshop/#/register)
+#### Process passwords
+[Presentation](http://virtuslab.github.io/akka-workshop/#/process)
 
 Once registered, use acquired token request and check decrypted passwords. **Beware!** Decryper sometimes fails so be sure that you are able to overcome that.
 
@@ -68,7 +68,7 @@ More about [supervision](http://doc.akka.io/docs/akka/2.4.2/general/supervision.
  
 100% of correctness is realy hard to achieve with parallelization. Everything over 90% is fine :)
 
-#### Terminating long running tasks
+#### Terminating the straglers
 [Presentation](http://virtuslab.github.io/akka-workshop/#/long-tasks)
 
 With supervision applied our correctness rise but we become slower. We should try to fix that.

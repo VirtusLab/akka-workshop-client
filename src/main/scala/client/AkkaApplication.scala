@@ -4,15 +4,16 @@ import java.net.InetAddress
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor._
 import akka.routing._
-import com.virtuslab.akkaworkshop.{PasswordDecoded, PasswordPrepared, Decrypter}
+import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
 import com.virtuslab.akkaworkshop.PasswordsDistributor._
+import scala.concurrent.duration._
+import scala.concurrent.Await
 
 class WorkerActor extends Actor {
   val decrypter = new Decrypter
 
-  override def preRestart(reason: Throwable, message: Option[Any]) {
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit =
     message foreach { self.forward }
-  }
 
   override def receive: Actor.Receive = waitingForNewPassword
 
@@ -30,25 +31,28 @@ class WorkerActor extends Actor {
       self forward (decrypter.decode(preparedPassword) :: preparedPassword :: hs)
     case (decodedPassword: PasswordDecoded) :: hs =>
       self forward (decrypter.decrypt(decodedPassword) :: decodedPassword :: hs)
-    case  (decryptedPassword: String) :: decodedPassword :: preparedPassword :: (encryptedPassword: String) :: Nil =>
+    case (decryptedPassword: String) :: decodedPassword :: preparedPassword :: (encryptedPassword: String) :: Nil =>
       sender ! ValidateDecodedPassword("", encryptedPassword, decryptedPassword)
       context.become(waitingForNewPassword)
   }
 }
 
 class WorkDispatcherActor extends Actor {
-  val poolSize = 10
-  var token: String = _
+  val poolSize           = 10
+  var token: String      = _
   val restartingStrategy = AllForOneStrategy() { case _: Exception => Restart }
-  val router = context.actorOf(RoundRobinPool(poolSize, supervisorStrategy = restartingStrategy).props(Props[WorkerActor]))
-  val distributorActor = context.actorSelection("akka.tcp://application@192.168.2.95:9552/user/PasswordsDistributor")
+  val router = context.actorOf(
+    RoundRobinPool(poolSize, supervisorStrategy = restartingStrategy)
+      .props(Props[WorkerActor])
+  )
+  val distributorActor = context.actorSelection("akka.tcp://application@headquarters:9552/user/PasswordsDistributor")
 
   router ! GetRoutees
 
   def receive = {
     case Routees(routees) =>
       routees.foreach { case ActorRefRoutee(ref) => context.watch(ref) }
-      distributorActor ! Register(InetAddress.getLocalHost().getHostName())
+      distributorActor ! Register(InetAddress.getLocalHost.getHostName)
     case Registered(t) =>
       token = t
       (1 to poolSize).foreach(_ => requestNewPassword())
@@ -59,8 +63,8 @@ class WorkDispatcherActor extends Actor {
     case PasswordCorrect(password) =>
       println(s"Correct password: $password")
       requestNewPassword()
-    case PasswordIncorrect(password) =>
-      println(s"Incorrect password: $password")
+    case PasswordIncorrect(password, correct) =>
+      println(s"Incorrect password: $password; should be $correct")
       requestNewPassword()
   }
 
@@ -69,8 +73,8 @@ class WorkDispatcherActor extends Actor {
 
 object AkkaApplication extends App {
   println("### Starting simple application ###")
-  val system = ActorSystem("WorkshopClientAkkaSystem")
-  val distributorActor = system.actorSelection("akka.tcp://application@127.0.0.1:9552/user/PasswordsDistributor")
-  val dispatcher = system.actorOf(Props[WorkDispatcherActor], "dispatcher")
-  system.awaitTermination()
+  val system           = ActorSystem("WorkshopClientAkkaSystem")
+  val distributorActor = system.actorSelection("akka.tcp://application@headquarters:9552/user/PasswordsDistributor")
+  val dispatcher       = system.actorOf(Props[WorkDispatcherActor], "dispatcher")
+  Await.ready(system.whenTerminated, Duration.Inf)
 }

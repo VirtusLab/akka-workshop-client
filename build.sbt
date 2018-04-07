@@ -1,15 +1,17 @@
 name := "akka-workshop-client"
 
-version := "1.0"
+version := "2.0"
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.12.5"
 
 resolvers += "Workshop Repository" at "http://headquarters:8081/artifactory/libs-release-local"
 
+val akkaVersion = "2.5.11"
+
 libraryDependencies ++= Seq(
-  "commons-codec" % "commons-codec" % "1.9",
-  "com.typesafe.akka" %% "akka-actor" % "2.4.3",
-  "com.typesafe.akka" %% "akka-remote" % "2.4.3",
-  "com.typesafe.akka" %% "akka-cluster" % "2.4.3",
-  "com.typesafe.akka" %% "akka-cluster-tools" % "2.4.3"
+  "commons-codec" % "commons-codec" % "1.11",
+  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  "com.typesafe.akka" %% "akka-remote" % akkaVersion,
+  "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
+  "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion
 )

@@ -13,7 +13,7 @@ object AkkaApplication extends App {
 
   val system = ActorSystem("RequesterSystem")
 
-  val remoteIp = "localhost"
+  val remoteIp = "headquarters"
   val remotePort = 9552
 
   val remoteServer = system.actorSelection(s"akka.tcp://application@$remoteIp:$remotePort/user/PasswordsDistributor")

@@ -16,7 +16,7 @@ class RequesterActor extends Actor with ActorLogging {
   }
 
   override def preStart() = {
-    val remoteIp = "localhost"
+    val remoteIp = "headquarters"
     val remotePort = 9552
     val remoteSelection = context.actorSelection(s"akka.tcp://application@$remoteIp:$remotePort/user/PasswordsDistributor")
     remoteSelection ! Register(name)

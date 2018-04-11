@@ -2,7 +2,10 @@ package client
 
 import akka.actor.{Actor, Props}
 import com.virtuslab.akkaworkshop.Decrypter
-import com.virtuslab.akkaworkshop.PasswordsDistributor.{ValidateDecodedPassword, EncryptedPassword}
+import com.virtuslab.akkaworkshop.PasswordsDistributor.{
+  ValidateDecodedPassword,
+  EncryptedPassword
+}
 
 class Worker extends Actor {
 
@@ -21,8 +24,8 @@ class Worker extends Actor {
     message foreach { self.forward }
   }
 
-  def working : Receive = {
-    case ep@EncryptedPassword(encryptedPassword) =>
+  def working: Receive = {
+    case ep @ EncryptedPassword(encryptedPassword) =>
       val decrypted = decryptPassword(encryptedPassword)
       sender ! ValidateDecodedPassword("", encryptedPassword, decrypted)
 

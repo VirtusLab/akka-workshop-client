@@ -16,9 +16,14 @@ object AkkaApplication extends App {
   val remoteIp = "headquarters"
   val remotePort = 9552
 
-  val remoteServer = system.actorSelection(s"akka.tcp://application@$remoteIp:$remotePort/user/PasswordsDistributor")
+  val remoteServer = system.actorSelection(
+    s"akka.tcp://application@$remoteIp:$remotePort/user/PasswordsDistributor")
 
-  val remoteServerRef = Try(Await.result((remoteServer ? Identify("123L")).mapTo[ActorIdentity], 10.seconds).ref)
+  val remoteServerRef = Try(
+    Await
+      .result((remoteServer ? Identify("123L")).mapTo[ActorIdentity],
+              10.seconds)
+      .ref)
 
   remoteServerRef match {
     case Success(Some(ref)) =>

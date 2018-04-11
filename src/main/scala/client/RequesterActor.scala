@@ -28,12 +28,10 @@ class RequesterActor extends Actor {
       // use SendMeEncryptedPassword(token)
       println(s"Registered! Token: $token")
 
-
     case EncryptedPassword(encryptedPassword) =>
       // TODO Decrypt this password using decrypter instance
       // And send it back using ValidateDecodedPassword(token, encryptedPassword, decryptedPassword)
       println(s"Password to decrypt: $encryptedPassword")
-
 
     case PasswordCorrect(decryptedPassword) =>
       // TODO ask for more passwords

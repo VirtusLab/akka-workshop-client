@@ -7,13 +7,14 @@ import com.virtuslab.akkaworkshop.PasswordsDistributor._
 
 import scala.util.Try
 
-class RequesterActor(remote : ActorRef) extends Actor with ActorLogging{
+class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
 
   var decrypter = new Decrypter
   val name = "Cesar"
 
   val workersNumber = 5
-  val workers = context.actorOf(RoundRobinPool(workersNumber).props(Worker.props))
+  val workers =
+    context.actorOf(RoundRobinPool(workersNumber).props(Worker.props))
 
   private def decryptPassword(password: String): Try[String] = Try {
     val prepared = decrypter.prepare(password)
@@ -32,12 +33,12 @@ class RequesterActor(remote : ActorRef) extends Actor with ActorLogging{
     case Registered(token) =>
       log.info(s"Registered with token $token")
       remote ! SendMeEncryptedPassword(token)
-      for(_ <- 0 until workersNumber) remote ! SendMeEncryptedPassword(token)
+      for (_ <- 0 until workersNumber) remote ! SendMeEncryptedPassword(token)
       context.become(working(token))
   }
 
-  def working(token : String): Receive = {
-    case encryptedPassword : EncryptedPassword =>
+  def working(token: String): Receive = {
+    case encryptedPassword: EncryptedPassword =>
       workers ! encryptedPassword
 
     case ValidateDecodedPassword(_, encrypted, decrypted) =>
@@ -48,7 +49,8 @@ class RequesterActor(remote : ActorRef) extends Actor with ActorLogging{
       remote ! SendMeEncryptedPassword(token)
 
     case PasswordIncorrect(decryptedPassword, correctPassword) =>
-      log.error(s"Password $decryptedPassword was not decrypted correctly, should be $correctPassword")
+      log.error(
+        s"Password $decryptedPassword was not decrypted correctly, should be $correctPassword")
       remote ! SendMeEncryptedPassword(token)
   }
 

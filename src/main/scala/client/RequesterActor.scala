@@ -12,13 +12,15 @@ class RequesterActor extends Actor with ActorLogging {
 
   def createRouter = {
     val addresses = supervisorSet.map(_._1.path.toString)
-    context.actorOf(RoundRobinGroup(addresses).props(), s"router_${supervisorSet.size}")
+    context.actorOf(RoundRobinGroup(addresses).props(),
+                    s"router_${supervisorSet.size}")
   }
 
   override def preStart() = {
     val remoteIp = "headquarters"
     val remotePort = 9552
-    val remoteSelection = context.actorSelection(s"akka.tcp://application@$remoteIp:$remotePort/user/PasswordsDistributor")
+    val remoteSelection = context.actorSelection(
+      s"akka.tcp://application@$remoteIp:$remotePort/user/PasswordsDistributor")
     remoteSelection ! Register(name)
   }
 
@@ -61,7 +63,8 @@ class RequesterActor extends Actor with ActorLogging {
       remote ! SendMeEncryptedPassword(token)
 
     case PasswordIncorrect(decryptedPassword, correctPassword) =>
-      log.error(s"Password $decryptedPassword was not decrypted correctly, should be $correctPassword")
+      log.error(
+        s"Password $decryptedPassword was not decrypted correctly, should be $correctPassword")
       remote ! SendMeEncryptedPassword(token)
   }
 

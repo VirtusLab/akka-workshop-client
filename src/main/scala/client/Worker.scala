@@ -2,7 +2,10 @@ package client
 
 import akka.actor.{Actor, Props}
 import com.virtuslab.akkaworkshop.{PasswordDecoded, PasswordPrepared, Decrypter}
-import com.virtuslab.akkaworkshop.PasswordsDistributor.{ValidateDecodedPassword, EncryptedPassword}
+import com.virtuslab.akkaworkshop.PasswordsDistributor.{
+  ValidateDecodedPassword,
+  EncryptedPassword
+}
 
 class Worker extends Actor {
 
@@ -16,7 +19,8 @@ class Worker extends Actor {
 
   def waitingForNewPassword: Actor.Receive = {
     case (encryptedPassword: String) :: Nil =>
-      self forward (decrypter.prepare(encryptedPassword) :: List(encryptedPassword))
+      self forward (decrypter.prepare(encryptedPassword) :: List(
+        encryptedPassword))
       context.become(processing)
     case msg :: history =>
       self forward history
@@ -28,7 +32,7 @@ class Worker extends Actor {
       self forward (decrypter.decode(preparedPassword) :: preparedPassword :: hs)
     case (decodedPassword: PasswordDecoded) :: hs =>
       self forward (decrypter.decrypt(decodedPassword) :: decodedPassword :: hs)
-    case  (decryptedPassword: String) :: decodedPassword :: preparedPassword :: (encryptedPassword: String) :: Nil =>
+    case (decryptedPassword: String) :: decodedPassword :: preparedPassword :: (encryptedPassword: String) :: Nil =>
       sender ! ValidateDecodedPassword("", encryptedPassword, decryptedPassword)
       context.become(waitingForNewPassword)
   }

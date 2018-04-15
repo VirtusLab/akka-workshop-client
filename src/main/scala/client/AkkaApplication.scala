@@ -1,26 +1,25 @@
 package client
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorSystem, PoisonPill, Props}
+import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
 
 object AkkaApplication extends App {
 
   val system = ActorSystem("RequesterSystem")
 
-  val requesterActor = system.actorOf(Props(new RequesterActorSingleton("Krzysiek")), name = "requester")
 
-
-  /*system.actorOf(ClusterSingletonManager.props(
-    singletonProps = RequesterActor.props,
+  system.actorOf(ClusterSingletonManager.props(
+    singletonProps = Props(new RequesterActorSingleton("Krzysiek")),
     terminationMessage = PoisonPill,
     settings = ClusterSingletonManagerSettings(system)),
-    name = "consumer"
+    name = "requester"
   )
 
-  val singleton = system.actorOf(ClusterSingletonProxy.props(
-    singletonManagerPath = "/user/consumer",
+  val requesterActor = system.actorOf(ClusterSingletonProxy.props(
+    singletonManagerPath = "/user/requester",
     settings = ClusterSingletonProxySettings(system)),
-    name = "consumerProxy"
-  )*/
+    name = "requesterProxy"
+  )
 
   system.actorOf(Props(classOf[Supervisor], requesterActor))
 

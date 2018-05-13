@@ -1,15 +1,19 @@
 package client
 
-import akka.actor.SupervisorStrategy.Restart
-import akka.actor.{Actor, ActorLogging, ActorRef, AllForOneStrategy, FSM, Props}
-import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
-import com.virtuslab.akkaworkshop.PasswordsDistributor._
 import scala.concurrent.duration._
 
-case class GetPasswordDistributor(nodeSupervisor: ActorRef)
-case class ReceivePasswordDistributor(token: String, passwordDistributor: ActorRef)
+import akka.actor.SupervisorStrategy.Restart
+import akka.actor.{Actor, ActorLogging, ActorRef, AllForOneStrategy, Props}
+import com.virtuslab.akkaworkshop.PasswordsDistributor._
+import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
 
-class RequesterActorSingleton(nickname: String) extends Actor with ActorLogging {
+object RequesterActorClusterSingleton {
+  case class GetPasswordDistributor(nodeSupervisor: ActorRef)
+  case class ReceivePasswordDistributor(token: String, passwordDistributor: ActorRef)
+}
+
+class RequesterActorClusterSingleton(nickname: String) extends Actor with ActorLogging {
+  import RequesterActorClusterSingleton._
 
   import context.dispatcher
 
@@ -27,34 +31,34 @@ class RequesterActorSingleton(nickname: String) extends Actor with ActorLogging 
   override def receive: Receive = initializing(Set.empty[ActorRef])
 
   def initializing(awaitingSupervisors: Set[ActorRef]): Receive = {
-    case remoteActorRef: ActorRef =>
-      // HINT: Using actor ref instead of actor selection is recommended
-      remoteActorRef ! Register(nickname)
+    case passwordDistributor: ActorRef =>
+      passwordDistributor ! Register(nickname)
+      context.become(remoteRef(passwordDistributor, awaitingSupervisors))
 
-      context.become(remoteRef(remoteActorRef, awaitingSupervisors))
+    //store all awaiting nodes
     case GetPasswordDistributor(nodeSupervisor) =>
+      log.info(s"New node is awaiting for password distributor ${nodeSupervisor.path}")
       context.become(initializing(awaitingSupervisors + nodeSupervisor))
   }
 
-  def remoteRef(remoteActorRef: ActorRef, awaitingSupervisors: Set[ActorRef]): Receive = {
+  def remoteRef(passwordDistributor: ActorRef, awaitingSupervisors: Set[ActorRef]): Receive = {
     case Registered(token) =>
-      awaitingSupervisors.foreach(_ ! ReceivePasswordDistributor(token, remoteActorRef))
-      context.become(withToken(remoteActorRef, token))
+      //send password distributor and node to awaiting nodes
+      log.info(s"Singleton $nickname has been registered")
+      awaitingSupervisors.foreach(_ ! ReceivePasswordDistributor(token, passwordDistributor))
+      context.become(withToken(passwordDistributor, token))
   }
 
-  def withToken(remoteActorRef: ActorRef, token: String): Receive = {
-    case GetPasswordDistributor(nodeSupervisor) => {
-      nodeSupervisor ! ReceivePasswordDistributor(token, remoteActorRef)
-    }
-
-    case e =>
-      log.error(s"This should not happen $e")
+  def withToken(passwordDistributor: ActorRef, token: String): Receive = {
+    case GetPasswordDistributor(nodeSupervisor) =>
+      log.info(s"New node has joined ${nodeSupervisor.path}")
+      nodeSupervisor ! ReceivePasswordDistributor(token, passwordDistributor)
   }
 }
 
-class Supervisor(requesterSingleton: ActorRef) extends Actor {
+class NodeSupervisor(requesterSingleton: ActorRef) extends Actor {
 
-  requesterSingleton ! GetPasswordDistributor(self)
+  requesterSingleton ! RequesterActorClusterSingleton.GetPasswordDistributor(self)
 
   val workersNumber = 4
 
@@ -62,7 +66,7 @@ class Supervisor(requesterSingleton: ActorRef) extends Actor {
     AllForOneStrategy() { case _: Exception => Restart }
 
   override def receive: Receive = {
-    case ReceivePasswordDistributor(token, passwordDistributor) =>
+    case RequesterActorClusterSingleton.ReceivePasswordDistributor(token, passwordDistributor) =>
       (1 to workersNumber).foreach(
         _ => context.actorOf(Props(classOf[Worker], token, passwordDistributor)) ! Worker.Start
       )
@@ -73,96 +77,84 @@ object Worker {
 
   case object Start
 
-  sealed trait State
-  case object Idle       extends State
-  case object Preparing  extends State
-  case object Decoding   extends State
-  case object Decrypting extends State
-  case object Sending    extends State
-
-  sealed trait Data
-  case object Uninitialized extends Data
-
   sealed trait Messages
-  final case class Prepared(encrypted: String, prepared: PasswordPrepared) extends Messages
-  final case class Decoded(prepared: Prepared, decoded: PasswordDecoded)   extends Messages
-  final case class Decrypted(decoded: Decoded, decrypted: String)          extends Messages
-
+  final case class Prepared(passwordEncrypted: String, passwordPrepared: PasswordPrepared) extends Messages
+  final case class Decoded(prepared: Prepared, passwordDecoded: PasswordDecoded)           extends Messages
+  final case class Decrypted(decoded: Decoded, passwordDecrypted: String)                  extends Messages
 }
 
-import Worker._
-
-class Worker(token: String, remoteActor: ActorRef) extends FSM[State, Data] with ActorLogging {
-
-  startWith(Idle, Uninitialized)
+class Worker(token: String, remoteActor: ActorRef) extends Actor with ActorLogging {
+  import client.Worker._
 
   val decrypter = new Decrypter
 
-  when(Idle) {
-    case Event(Start, _) =>
-      remoteActor ! SendMeEncryptedPassword(token)
-      goto(Preparing)
+  log.info("New worker has been started")
 
-    case Event(PasswordCorrect(decryptedPassword), _) =>
-      log.debug(s"PasswordCorrect: $decryptedPassword")
+  override def receive: Receive = idle()
+
+  def idle(): Receive = {
+    case Start =>
       remoteActor ! SendMeEncryptedPassword(token)
-      goto(Idle) using Uninitialized
-    case Event(PasswordIncorrect(decryptedPassword, correctPassword), _) =>
-      log.debug(s"PasswordIncorrect: $decryptedPassword should be $correctPassword")
+      context.become(preparing())
+
+    case PasswordCorrect(decryptedPassword) =>
+      log.info(s"PasswordCorrect: $decryptedPassword")
       remoteActor ! SendMeEncryptedPassword(token)
-      goto(Idle) using Uninitialized
+
+    case PasswordIncorrect(decryptedPassword, correctPassword) =>
+      log.error(s"PasswordIncorrect: $decryptedPassword should be $correctPassword")
+      remoteActor ! SendMeEncryptedPassword(token)
 
     //In case of restart, take step back as result can be broken
-    case Event(encrypted @ EncryptedPassword(encryptedPassword), _) =>
-      self ! EncryptedPassword(encryptedPassword)
-      goto(Preparing)
-    case Event(prepared: Prepared, _) =>
-      self ! EncryptedPassword(prepared.encrypted)
-      goto(Preparing)
-    case Event(decoded: Decoded, _) =>
+    case encrypted: EncryptedPassword =>
+      self ! encrypted
+      context.become(preparing())
+
+    case prepared: Prepared =>
+      self ! EncryptedPassword(prepared.passwordEncrypted)
+      context.become(preparing())
+
+    case decoded: Decoded =>
       self ! decoded.prepared
-      goto(Decoding)
-    case Event(decrypted: Decrypted, _) =>
+      context.become(decoding())
+
+    case decrypted: Decrypted =>
       self ! decrypted.decoded
-      goto(Decrypting)
+      context.become(decrypting())
   }
 
-  when(Preparing) {
-    case Event(EncryptedPassword(encryptedPassword), _) =>
+  def preparing(): Receive = {
+    case EncryptedPassword(encryptedPassword) =>
       self ! Prepared(encryptedPassword, decrypter.prepare(encryptedPassword))
-      goto(Decoding)
+      context.become(decoding())
   }
 
-  when(Decoding) {
-    case Event(prepared: Prepared, _) =>
-      self ! Decoded(prepared, decrypter.decode(prepared.prepared))
-      goto(Decrypting)
+  def decoding(): Receive = {
+    case prepared: Prepared =>
+      self ! Decoded(prepared, decrypter.decode(prepared.passwordPrepared))
+      context.become(decrypting())
   }
 
-  when(Decrypting) {
-    case Event(decoded: Decoded, _) =>
-      self ! Decrypted(decoded, decrypter.decrypt(decoded.decoded))
-      goto(Sending)
+  def decrypting(): Receive = {
+    case decoded: Decoded =>
+      self ! Decrypted(decoded, decrypter.decrypt(decoded.passwordDecoded))
+      context.become(sending())
   }
 
-  when(Sending) {
-    case Event(decrypted: Decrypted, _) =>
-      remoteActor ! ValidateDecodedPassword(token, decrypted.decoded.prepared.encrypted, decrypted.decrypted)
-      goto(Idle) using Uninitialized
+  def sending(): Receive = {
+    case decrypted: Decrypted =>
+      remoteActor ! ValidateDecodedPassword(
+        token = token,
+        encryptedPassword = decrypted.decoded.prepared.passwordEncrypted,
+        decryptedPassword = decrypted.passwordDecrypted
+      )
+      context.become(idle())
   }
 
-  whenUnhandled {
-    case e => log.error(s"stateName: $stateName, unhandlerd: $e"); println(stateName)
-      stay()
-  }
-  onTransition{
-    case e -> e2 => println(s"current state: $e next state: $e2")
-  }
-
+  //try to continue with the message from before restart
   override def preRestart(reason: Throwable, message: Option[Any]): Unit =
     message foreach { m =>
       self ! m
     }
 
-  initialize()
 }

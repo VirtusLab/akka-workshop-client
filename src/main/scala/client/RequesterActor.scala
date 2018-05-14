@@ -11,24 +11,24 @@ import scala.util.Try
 class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
 
   var decrypter = new Decrypter
-  val name = "Cesar"
+  val name      = "Cesar"
 
-  val workersNumber = 5
+  val workersNumber      = 5
   val restartingStrategy = AllForOneStrategy() { case _: Exception => Restart }
   val workers = context.actorOf(
     RoundRobinPool(workersNumber, supervisorStrategy = restartingStrategy)
-      .props(Worker.props))
+      .props(Worker.props)
+  )
 
   private def decryptPassword(password: String): Try[String] = Try {
-    val prepared = decrypter.prepare(password)
-    val decoded = decrypter.decode(prepared)
+    val prepared  = decrypter.prepare(password)
+    val decoded   = decrypter.decode(prepared)
     val decrypted = decrypter.decrypt(decoded)
     decrypted
   }
 
-  override def preStart() = {
+  override def preStart() =
     remote ! Register(name)
-  }
 
   override def receive: Receive = starting
 
@@ -52,8 +52,7 @@ class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
       remote ! SendMeEncryptedPassword(token)
 
     case PasswordIncorrect(decryptedPassword, correctPassword) =>
-      log.error(
-        s"Password $decryptedPassword was not decrypted correctly, should be $correctPassword")
+      log.error(s"Password $decryptedPassword was not decrypted correctly, should be $correctPassword")
       remote ! SendMeEncryptedPassword(token)
   }
 
@@ -61,6 +60,6 @@ class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
 
 object RequesterActor {
 
-  def props(remote: ActorRef) = Props(classOf[RequesterActor], remote)
+  def props(remote: ActorRef) = Props(new RequesterActor(remote))
 
 }

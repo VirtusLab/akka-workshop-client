@@ -1,28 +1,23 @@
 package client
 
 import akka.actor.{Actor, Props}
-import com.virtuslab.akkaworkshop.{PasswordDecoded, PasswordPrepared, Decrypter}
-import com.virtuslab.akkaworkshop.PasswordsDistributor.{
-  ValidateDecodedPassword,
-  EncryptedPassword
-}
+import com.virtuslab.akkaworkshop.PasswordsDistributor.ValidateDecodedPassword
+import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
 
 class Worker extends Actor {
 
   val decrypter = new Decrypter
 
-  override def preRestart(reason: Throwable, message: Option[Any]) {
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit =
     message foreach { self.forward }
-  }
 
   override def receive: Actor.Receive = waitingForNewPassword
 
   def waitingForNewPassword: Actor.Receive = {
     case (encryptedPassword: String) :: Nil =>
-      self forward (decrypter.prepare(encryptedPassword) :: List(
-        encryptedPassword))
+      self forward (decrypter.prepare(encryptedPassword) :: List(encryptedPassword))
       context.become(processing)
-    case msg :: history =>
+    case _ :: history => //take step back - discard last computation result (after restart it can be invalid)
       self forward history
       if (history.length > 1) context.become(processing)
   }
@@ -39,5 +34,5 @@ class Worker extends Actor {
 }
 
 object Worker {
-  def props = Props[Worker]
+  def props: Props = Props[Worker]
 }

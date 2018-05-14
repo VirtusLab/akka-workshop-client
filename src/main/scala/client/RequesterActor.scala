@@ -1,6 +1,6 @@
 package client
 
-import akka.actor.{ActorSelection, Props, Actor}
+import akka.actor.{Actor, ActorSelection}
 import com.virtuslab.akkaworkshop.Decrypter
 import com.virtuslab.akkaworkshop.PasswordsDistributor._
 
@@ -9,8 +9,8 @@ class RequesterActor extends Actor {
   val decrypter = new Decrypter
 
   private def decryptPassword(password: String): String = {
-    val preapared = decrypter.prepare(password)
-    val decoded = decrypter.decode(preapared)
+    val prepared  = decrypter.prepare(password)
+    val decoded   = decrypter.decode(prepared)
     val decrypted = decrypter.decrypt(decoded)
     decrypted
   }

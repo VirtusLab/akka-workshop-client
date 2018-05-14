@@ -1,9 +1,6 @@
 package client
 
-import akka.actor.{ActorSelection, Actor, ActorSystem, Props}
-import com.virtuslab.akkaworkshop.Decrypter
-import com.virtuslab.akkaworkshop.PasswordsDistributor._
-import scala.util.Try
+import akka.actor.{ActorSelection, ActorSystem, Props}
 
 object AkkaApplication extends App {
 

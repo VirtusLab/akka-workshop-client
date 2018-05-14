@@ -9,18 +9,17 @@ import scala.util.Try
 class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
 
   var decrypter = new Decrypter
-  val name = "Cesar"
+  val name      = "Cesar"
 
   private def decryptPassword(password: String): Try[String] = Try {
-    val prepared = decrypter.prepare(password)
-    val decoded = decrypter.decode(prepared)
+    val prepared  = decrypter.prepare(password)
+    val decoded   = decrypter.decode(prepared)
     val decrypted = decrypter.decrypt(decoded)
     decrypted
   }
 
-  override def preStart() = {
+  override def preStart(): Unit =
     remote ! Register(name)
-  }
 
   override def receive: Receive = starting
 
@@ -36,9 +35,7 @@ class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
       val decrypted = decryptPassword(encryptedPassword)
       decrypted
         .map { decryptedPassword =>
-          remote ! ValidateDecodedPassword(token,
-                                           encryptedPassword,
-                                           decryptedPassword)
+          remote ! ValidateDecodedPassword(token, encryptedPassword, decryptedPassword)
         }
         .getOrElse {
           decrypter = new Decrypter
@@ -50,8 +47,7 @@ class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
       remote ! SendMeEncryptedPassword(token)
 
     case PasswordIncorrect(decryptedPassword, correctPassword) =>
-      log.error(
-        s"Password $decryptedPassword was not decrypted correctly, should be $correctPassword")
+      log.error(s"Password $decryptedPassword was not decrypted correctly, should be $correctPassword")
       remote ! SendMeEncryptedPassword(token)
   }
 
@@ -59,6 +55,6 @@ class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
 
 object RequesterActor {
 
-  def props(remote: ActorRef) = Props(classOf[RequesterActor], remote)
+  def props(remote: ActorRef) = Props(new RequesterActor(remote))
 
 }

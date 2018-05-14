@@ -2,10 +2,10 @@ package client
 
 import akka.actor._
 import akka.cluster.singleton.{
-  ClusterSingletonProxySettings,
-  ClusterSingletonProxy,
+  ClusterSingletonManager,
   ClusterSingletonManagerSettings,
-  ClusterSingletonManager
+  ClusterSingletonProxy,
+  ClusterSingletonProxySettings
 }
 import akka.util.Timeout
 import scala.concurrent.duration._
@@ -17,18 +17,19 @@ object AkkaApplication extends App {
   val system = ActorSystem("RequesterSystem")
 
   system.actorOf(
-    ClusterSingletonManager.props(singletonProps = RequesterActor.props,
-                                  terminationMessage = PoisonPill,
-                                  settings =
-                                    ClusterSingletonManagerSettings(system)),
+    ClusterSingletonManager.props(
+      singletonProps = RequesterActor.props,
+      terminationMessage = PoisonPill,
+      settings = ClusterSingletonManagerSettings(system)
+    ),
     name = "consumer"
   )
 
-  val singleton = system.actorOf(ClusterSingletonProxy.props(
-                                   singletonManagerPath = "/user/consumer",
-                                   settings =
-                                     ClusterSingletonProxySettings(system)),
-                                 name = "consumerProxy")
+  val singleton = system.actorOf(
+    ClusterSingletonProxy
+      .props(singletonManagerPath = "/user/consumer", settings = ClusterSingletonProxySettings(system)),
+    name = "consumerProxy"
+  )
 
   system.actorOf(Props(classOf[Supervisor], singleton))
 

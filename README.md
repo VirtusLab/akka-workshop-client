@@ -66,8 +66,10 @@ but it's for use cases where we no longer care about canceled `IO` - we just wan
 means it's not straightforward to know exactly when it has been canceled. 
 Can you tell why this would be a problem for our use case? 
 
-Fortunately we can signal it manually sharing something like `Ref[IO, Boolean]` which could serve as a signal telling us
-whether we should keep going. This could give us precise control!
+Fortunately we can signal it manually sharing something like 
+[`Ref[IO, Boolean]`](https://typelevel.org/cats-effect/concurrency/ref.html) or 
+[`Deferred[IO, Unit]`](https://typelevel.org/cats-effect/concurrency/deferred.html)
+which could serve as a signal telling us whether we should keep going. This could give us precise control we want!
  
 100% of correctness is really hard to achieve with parallelization. Everything over 90% is fine :)
 

@@ -18,14 +18,13 @@ object Main extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
     Http1Client[IO]()
-      .flatMap { client =>
+      .bracket { client =>
         implicit val httpClient: Client[IO] = client
         for {
           token <- requestToken("Piotrek")
           _ <- decryptForever(token)
-          _ <- httpClient.shutdown
         } yield ExitCode.Success
-      }
+      }(_.shutdown)
 
   def decryptForever(token: Token)(implicit httpClient: Client[IO]): IO[Unit] = {
     val decrypter = new Decrypter

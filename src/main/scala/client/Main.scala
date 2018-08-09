@@ -19,14 +19,13 @@ object Main extends IOApp {
   override def run(args: List[String]): IO[ExitCode] =
     Http1Client[IO]()
       .bracket { client =>
-        implicit val httpClient: Client[IO] = client
         for {
-          token <- requestToken("Piotrek")
-          _ <- decryptForever(token)
+          token <- requestToken("Piotrek")(client)
+          _ <- decryptForever(token)(client, timer)
         } yield ExitCode.Success
       }(_.shutdown)
 
-  def decryptForever(token: Token)(implicit httpClient: Client[IO]): IO[Unit] = {
+  def decryptForever(token: Token)(implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
     val decrypter = new Decrypter
 
     // Notice that if you don't handle exceptions from Decrypter
@@ -36,7 +35,7 @@ object Main extends IOApp {
   }
 
   def decryptingLoop(token: Token, decrypter: Decrypter)
-                    (implicit httpClient: Client[IO]): IO[Unit] = {
+                    (implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
     // TODO: this `IO` should request, encrypt and validate passwords in infinite loop
     ???
   }

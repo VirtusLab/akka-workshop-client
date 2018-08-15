@@ -30,10 +30,10 @@ object Main extends App {
     // Notice that if you don't handle exceptions from Decrypter
     // they will propagate to this point failing the program.
     // What should we do in this case?
-    decryptingLoop(token, decrypter)
+    decryptionTask(token, decrypter).forever
   }
 
-  def decryptingLoop(token: Token, decrypter: Decrypter)(implicit httpClient: Client[Task]): IO[Nothing, Unit] =
-    // TODO: this `IO` should request, encrypt and validate passwords in infinite loop
+  def decryptionTask(token: Token, decrypter: Decrypter)(implicit httpClient: Client[Task]): IO[Nothing, Unit] =
+    // TODO: this `IO` should request, decrypt and validate a password
     ???
 }

@@ -1,12 +1,14 @@
 package client
 
 import client.PasswordClient._
+import client.Decrypting._
 import com.virtuslab.akkaworkshop.Decrypter
 import org.http4s.client.Client
 import org.http4s.client.blaze.Http1Client
 import scalaz.zio._
 import scalaz.zio.interop.Task
 import scalaz.zio.interop.catz._
+import util.putStrLn
 
 object Main extends App {
 
@@ -24,16 +26,20 @@ object Main extends App {
         case Right(_) => ExitStatus.ExitNow(0)
       }
 
-  def decryptForever(token: Token)(implicit httpClient: Client[Task]): IO[Nothing, Unit] = {
-    val decrypter = new Decrypter
+  def decryptForever(token: Token)(implicit httpClient: Client[Task]): IO[Nothing, Unit] =
+    decryptionTask(token).forever
 
-    // Notice that if you don't handle exceptions from Decrypter
-    // they will propagate to this point failing the program.
-    // What should we do in this case?
-    decryptionTask(token, decrypter).forever
-  }
+  def decryptionTask(token: Token)(implicit httpClient: Client[Task]): IO[Nothing, Unit] =
+    (for {
+      decrypter         <- getDecrypter
+      password          <- getPassword(token)
+      decryptedPassword <- fullDecryption(password, decrypter)
+      status            <- validatePassword(token, password.encryptedPassword, decryptedPassword)
+      _                 <- putStrLn(s"Status for password: ${password.encryptedPassword}: ${status.code}")
+    } yield ()).attempt.flatMap {
+      case Left(err) => putStrLn(s"Encountered error: $err")
+      case Right(_)  => IO.unit
+    }
 
-  def decryptionTask(token: Token, decrypter: Decrypter)(implicit httpClient: Client[Task]): IO[Nothing, Unit] =
-    // TODO: this `IO` should request, decrypt and validate a password
-    ???
+  def getDecrypter: IO[Nothing, Decrypter] = IO.point(new Decrypter)
 }

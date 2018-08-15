@@ -2,28 +2,42 @@ package client
 
 import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
 import scalaz.zio.IO
+import util.putStrLn
 
 object Decrypting {
 
-  def fullDecryption(password: Password, decrypter: Decrypter): IO[Nothing, String] = {
+  def fullDecryption(password: Password, decrypter: Decrypter): IO[Throwable, String] = {
     password match {
       case EncryptedPassword(encrypted) =>
-        ??? // TODO: preparePassword and continue
+        putStrLn(s"Preparing password: $encrypted") *>
+          preparePassword(encrypted, decrypter).flatMap { prepared =>
+            fullDecryption(PreparedPassword(encrypted, prepared), decrypter)
+          }
 
-      case PreparedPassword(_, prepared) =>
-        ??? // TODO: decodePassword and continue
+      case PreparedPassword(encrypted, prepared) =>
+        putStrLn(s"Decoding password: $encrypted") *>
+          decodePassword(prepared, decrypter).flatMap { decoded =>
+            fullDecryption(DecodedPassword(encrypted, decoded), decrypter)
+          }
 
-      case DecodedPassword(_, decoded) =>
-        ??? // TODO: decryptPassword and return
+      case DecodedPassword(encrypted, decoded) =>
+        putStrLn(s"Decrypting password: $encrypted") *>
+          decryptPassword(decoded, decrypter)
     }
   }
 
-  private def preparePassword(password: String, decrypter: Decrypter) =
-    ??? // TODO: Note that decrypter.prepare is side-effecting, blocking function
+  private def preparePassword(password: String, decrypter: Decrypter): IO[Throwable, PasswordPrepared] =
+    IO syncThrowable {
+      decrypter prepare password
+    }
 
-  private def decodePassword(passwordPrepared: PasswordPrepared, decrypter: Decrypter) =
-    ??? // TODO: Note that decrypter.decode is side-effecting, blocking function
+  private def decodePassword(passwordPrepared: PasswordPrepared, decrypter: Decrypter): IO[Throwable, PasswordDecoded] =
+    IO syncThrowable {
+      decrypter decode passwordPrepared
+    }
 
-  private def decryptPassword(passwordDecoded: PasswordDecoded, decrypter: Decrypter) =
-    ??? // TODO: Note that decrypter.decrypt is side-effecting, blocking function
+  private def decryptPassword(passwordDecoded: PasswordDecoded, decrypter: Decrypter): IO[Throwable, String] =
+    IO syncThrowable {
+      decrypter decrypt passwordDecoded
+    }
 }

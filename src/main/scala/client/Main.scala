@@ -1,31 +1,30 @@
 package client
 
-import java.util.concurrent._
-
-import cats.effect.{ExitCode, IO, IOApp, Timer}
+import client.PasswordClient._
 import com.virtuslab.akkaworkshop.Decrypter
 import org.http4s.client.Client
 import org.http4s.client.blaze.Http1Client
-import client.Decrypting._
-import client.PasswordClient._
-import cats.instances.list._
-import cats.syntax.all._
-import scala.concurrent.ExecutionContext
+import scalaz.zio._
+import scalaz.zio.interop.Task
+import scalaz.zio.interop.catz._
 
-object Main extends IOApp {
+object Main extends App {
 
-  override def timer: Timer[IO] = IO.timer(ExecutionContext.fromExecutor(Executors.newCachedThreadPool()))
-
-  override def run(args: List[String]): IO[ExitCode] =
-    Http1Client[IO]()
-      .bracket { client =>
+  def run(args: List[String]): IO[Nothing, ExitStatus] =
+    Http1Client[Task]()
+      .bracket(_.shutdown.attempt.void) { implicit client =>
         for {
-          token <- requestToken("Piotrek")(client)
-          _ <- decryptForever(token)(client, timer)
-        } yield ExitCode.Success
-      }(_.shutdown)
+          token <- requestToken("Łukasz")(client)
+          _     <- decryptForever(token)
+        } yield ()
+      }
+      .attempt
+      .map {
+        case Left(_)  => ExitStatus.ExitNow(1)
+        case Right(_) => ExitStatus.ExitNow(0)
+      }
 
-  def decryptForever(token: Token)(implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
+  def decryptForever(token: Token)(implicit httpClient: Client[Task]): IO[Nothing, Unit] = {
     val decrypter = new Decrypter
 
     // Notice that if you don't handle exceptions from Decrypter
@@ -34,9 +33,7 @@ object Main extends IOApp {
     decryptingLoop(token, decrypter)
   }
 
-  def decryptingLoop(token: Token, decrypter: Decrypter)
-                    (implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
+  def decryptingLoop(token: Token, decrypter: Decrypter)(implicit httpClient: Client[Task]): IO[Nothing, Unit] =
     // TODO: this `IO` should request, encrypt and validate passwords in infinite loop
     ???
-  }
 }

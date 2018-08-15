@@ -1,12 +1,11 @@
 package client
 
-import cats.effect.{IO, Timer}
 import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
+import scalaz.zio.IO
 
 object Decrypting {
 
-  def fullDecryption(password: Password, decrypter: Decrypter)
-                    (implicit timer: Timer[IO]): IO[String] = {
+  def fullDecryption(password: Password, decrypter: Decrypter): IO[Nothing, String] = {
     password match {
       case EncryptedPassword(encrypted) =>
         ??? // TODO: preparePassword and continue

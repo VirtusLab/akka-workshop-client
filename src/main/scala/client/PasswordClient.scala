@@ -1,34 +1,39 @@
 package client
 
-import cats.effect.IO
 import io.circe.generic.auto._
 import io.circe.syntax._
-import org.http4s.Status
+import org.http4s.{Request, Status}
 import org.http4s.circe.{jsonOf, _}
 import org.http4s.client.Client
-import org.http4s.client.dsl.io._
-import org.http4s.dsl.io.{POST, uri}
+import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.dsl.Http4sDsl
+import scalaz.zio.interop.Task
+import scalaz.zio.interop.catz._
 
 object PasswordClient {
 
-  def getPassword(token: Token)(implicit httpClient: Client[IO]): IO[Password] = {
+  import TaskDsls._
+
+  def getPassword(token: Token)(implicit httpClient: Client[Task]): Task[Password] = {
     requestPassword(token)
   }
 
-  def requestToken(userName: String)(implicit httpClient: Client[IO]): IO[Token] = {
+  def requestToken(userName: String)(implicit httpClient: Client[Task]): Task[Token] = {
     val req = POST(uri("http://localhost:9000/register"), User(userName).asJson)
-    httpClient.expect(req)(jsonOf[IO, Token])
+    httpClient.expect(req)(jsonOf[Task, Token])
   }
 
-  def requestPassword(token: Token)(implicit httpClient: Client[IO]): IO[EncryptedPassword] = {
-    val req = POST(uri("http://localhost:9000/send-encrypted-password"), token.asJson)
-    httpClient.expect(req)(jsonOf[IO, EncryptedPassword])
+  def requestPassword(token: Token)(implicit httpClient: Client[Task]): Task[EncryptedPassword] = {
+    val req: Task[Request[Task]] = POST(uri("http://localhost:9000/send-encrypted-password"), token.asJson)
+    httpClient.expect(req)(jsonOf[Task, EncryptedPassword])
   }
 
   def validatePassword(token: Token, encryptedPassword: String, decryptedPassword: String)
-                      (implicit httpClient: Client[IO]): IO[Status] = {
+                      (implicit httpClient: Client[Task]): Task[Status] = {
     val result = ValidatePassword(token.token, encryptedPassword, decryptedPassword)
-    val req = POST(uri("http://localhost:9000/validate"), result.asJson)
+    val req: Task[Request[Task]] = POST(uri("http://localhost:9000/validate"), result.asJson)
     httpClient.status(req)
   }
 }
+
+object TaskDsls extends Http4sClientDsl[Task] with Http4sDsl[Task]

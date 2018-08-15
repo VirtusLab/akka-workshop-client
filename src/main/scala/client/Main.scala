@@ -27,7 +27,7 @@ object Main extends App {
       }
 
   def decryptForever(token: Token)(implicit httpClient: Client[Task]): IO[Nothing, Unit] =
-    decryptionTask(token).forever
+    Pool.make(4, decryptionTask(token))
 
   def decryptionTask(token: Token)(implicit httpClient: Client[Task]): IO[Nothing, Unit] =
     (for {

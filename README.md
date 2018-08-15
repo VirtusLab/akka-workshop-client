@@ -1,7 +1,7 @@
-Asynchronous programming in late 2018 - Cats-effect
+Asynchronous programming in late 2018 - Scalaz ZIO
 =============
 
-Workshop on asynchronous programming using [cats.effect.IO](https://github.com/typelevel/cats-effect).
+Workshop on asynchronous programming using [Scalaz ZIO](https://scalaz.github.io/scalaz-zio).
 
 It will cover parallelism, error handling, synchronization and shared state - everything in purely functional manner!
 
@@ -38,8 +38,10 @@ that is not purely functional is cheating too. So make sure any effects are cont
 
 Now we care more about speed of processing. To measure this we need to use different mode of leader board: host-name:9000/?mode=parallel
 
-If we can't speed up decrypting process we can do it parallel. 
-Best place to start is [Cats-effect documentation](https://typelevel.org/cats-effect/datatypes/io.html#parallelism).
+If we can't speed up decrypting process we can do it in parallel. 
+Best place to start is [ZIO documentation on fibers and parallelism](https://scalaz.github.io/scalaz-zio/usage/fibers.html). 
+There are several ways to introduce controlled parallelism to our application: `Semaphore` and `.fork`, `IO.parTraverse` or maybe
+`Queue` and `.fork`. Each choice has a distinct impact on architecture of your solution.
 
 Beware: `Decrypter` has limitation: It can effectively process only 4 computation in one time. 
 Rest will just wait for free slot but it might make sense to have few more already waiting. Experiment and see what works
@@ -60,16 +62,10 @@ Once state in `Decrypter` gets corrupted all existing instances produce bad resu
 What is even worse all work that was already in progress when state gets corrupted will also yield bad results.
 It means that we need to throw away some output from corrupted `Decrypter` instances. 
 
-Once one of the `IO` fails we should stop the other ones. 
-There is a built in [cancelation](https://typelevel.org/cats-effect/datatypes/io.html#concurrency-and-cancellation) 
-but it's for use cases where we no longer care about canceled `IO` - we just want it to stop in the background. That 
-means it's not straightforward to know exactly when it has been canceled. 
-Can you tell why this would be a problem for our use case? 
-
-Fortunately we can signal it manually sharing something like 
-[`Ref[IO, Boolean]`](https://typelevel.org/cats-effect/concurrency/ref.html) or 
-[`Deferred[IO, Unit]`](https://typelevel.org/cats-effect/concurrency/deferred.html)
-which could serve as a signal telling us whether we should keep going. This could give us precise control we want!
+Once one of the `IO` fails we should stop the other ones. Scalaz ZIO features an interruption model which allows for
+stopping of running processes that are no longer needed. Check out the docs about
+[IO racing](https://scalaz.github.io/scalaz-zio/usage/fibers.html#racing) for a hint. There's a purely functional 
+`Promise` available in ZIO. Can you leverage this construct?  
  
 100% of correctness is really hard to achieve with parallelization. Everything over 90% is fine :)
 

@@ -1,4 +1,4 @@
-Asynchronous programming in late 2018 - Cats-effect
+Asynchronous programming in late 2018: Cats-effect
 =============
 
 Workshop on asynchronous programming using [cats.effect.IO](https://github.com/typelevel/cats-effect).

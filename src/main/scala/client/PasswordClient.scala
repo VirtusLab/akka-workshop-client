@@ -11,12 +11,12 @@ import org.http4s.dsl.io.{POST, uri}
 
 object PasswordClient {
 
-  private val HOST_NAME = "http://localhost"
-  private val PORT = "9000"
-
   def getPassword(token: Token)(implicit httpClient: Client[IO]): IO[Password] = {
     requestPassword(token)
   }
+
+  private val HOST_NAME = "http://localhost"
+  private val PORT = "9000"
 
   def requestToken(userName: String)(implicit httpClient: Client[IO]): IO[Token] = {
     val req = POST(uri(s"$HOST_NAME:$PORT/register"), User(userName).asJson)

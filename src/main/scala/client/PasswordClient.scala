@@ -15,23 +15,20 @@ object PasswordClient {
     requestPassword(token)
   }
 
-  private val HOST_NAME = "http://localhost"
-  private val PORT = "9000"
-
   def requestToken(userName: String)(implicit httpClient: Client[IO]): IO[Token] = {
-    val req = POST(uri(s"$HOST_NAME:$PORT/register"), User(userName).asJson)
+    val req = POST(uri("http://localhost:9000/register"), User(userName).asJson)
     httpClient.expect(req)(jsonOf[IO, Token])
   }
 
   def requestPassword(token: Token)(implicit httpClient: Client[IO]): IO[EncryptedPassword] = {
-    val req = POST(uri(s"$HOST_NAME:$PORT/send-encrypted-password"), token.asJson)
+    val req = POST(uri("http://localhost:9000/send-encrypted-password"), token.asJson)
     httpClient.expect(req)(jsonOf[IO, EncryptedPassword])
   }
 
   def validatePassword(token: Token, encryptedPassword: String, decryptedPassword: String)
                       (implicit httpClient: Client[IO]): IO[Status] = {
     val result = ValidatePassword(token.token, encryptedPassword, decryptedPassword)
-    val req = POST(uri(s"$HOST_NAME:$PORT/validate"), result.asJson)
+    val req = POST(uri("http://localhost:9000/validate"), result.asJson)
     httpClient.status(req)
   }
 }

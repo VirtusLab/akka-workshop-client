@@ -22,15 +22,16 @@ object Main extends IOApp {
       .bracket { client =>
         for {
           token <- requestToken("Piotrek")(client)
-          _ <- decryptForever(token)(client, timer)
+          _ <- decryptForever(2, token)(client, timer)
         } yield ExitCode.Success
       }(_.shutdown)
 
-  def decryptForever(token: Token)(implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
+  def decryptForever(parallelism: Int, token: Token)(implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
     val decrypter = new Decrypter
-
-    decryptingLoop(token, decrypter)
-      .handleErrorWith(_ => decryptForever(token))
+    List
+      .fill(parallelism)(decryptingLoop(token, decrypter).handleErrorWith(_ => IO.unit))
+      .parSequence
+      .flatMap(_ => decryptForever(parallelism, token))
   }
 
   def decryptingLoop(token: Token, decrypter: Decrypter)

@@ -18,7 +18,7 @@ They contain few `Cats-Effect` examples that might prove helpful when trying to 
 #### Connect and register 
 [Presentation](https://slides.com/avasil/asynchronous-programming-in-late-2018-cats-effect/fullscreen#/5)
 
-All you have to do is change host name to the one provided at the workshop, HTTP skeleton is already provided.
+All you have to do is provide your name and change the host to the one provided at the workshop, HTTP skeleton is already provided.
 
 Once correctly registered your name should appear at our leader board (at host-name:9000/?mode=remote)
 
@@ -31,6 +31,11 @@ Once registered, use acquired token request and check decrypted passwords. **Bew
 
 Your client should decrypt passwords in endless loop. Requesting millions of passwords at once is cheating! Also everything
 that is not purely functional is cheating too. So make sure any effects are contained within `IO` and then composed!
+
+If you're stuck:
+```
+git checkout cats-effect-process
+```
 
 #### Work parallelization
 [Presentation](https://slides.com/avasil/asynchronous-programming-in-late-2018-cats-effect/fullscreen#/7)
@@ -45,6 +50,11 @@ Rest will just wait for free slot but it might make sense to have few more alrea
 best for your solution.
 
 For now we care for speed!
+
+If you're stuck:
+```
+git checkout cats-effect-parallel
+```
 
 #### Error handling
 [Presentation](https://slides.com/avasil/asynchronous-programming-in-late-2018-cats-effect/fullscreen#/8)
@@ -72,6 +82,11 @@ which could serve as a signal telling us whether we should keep going. This coul
  
 100% of correctness is really hard to achieve with parallelization. Everything over 90% is fine :)
 
+If you're stuck:
+```
+git checkout cats-effect-error
+```
+
 #### Squeezing more performance
 [Presentation](https://slides.com/avasil/asynchronous-programming-in-late-2018-cats-effect/fullscreen#/9)
 
@@ -83,3 +98,8 @@ We need to share some kind of `List` or `Queue` to accomplish that. You know by 
 purely functional manner so let's use it to your advantage.
 Also, don't be afraid to modify part of the code responsible for requesting passwords! 
 Sometimes HTTP call won't be necessary.
+
+If you're stuck:
+```
+git checkout cats-effect-complete
+```

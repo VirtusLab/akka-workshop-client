@@ -33,7 +33,7 @@ Your client should decrypt passwords in endless loop. Requesting millions of pas
 that is not purely functional is cheating too. So make sure any effects are contained within `IO` and then composed!
 
 #### Work parallelization
-[Presentation](https://slides.com/avasil/asynchronous-programming-in-late-2018-cats-effect/fullscreen#/7) // TODO: Add my own
+[Presentation](https://slides.com/avasil/asynchronous-programming-in-late-2018-cats-effect/fullscreen#/7)
 
 Now we care more about speed of processing. To measure this we need to use different mode of leader board: host-name:9000/?mode=parallel
 

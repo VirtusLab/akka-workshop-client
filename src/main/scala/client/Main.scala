@@ -10,6 +10,7 @@ import client.Decrypting._
 import client.PasswordClient._
 import cats.instances.list._
 import cats.syntax.all._
+
 import scala.concurrent.ExecutionContext
 
 object Main extends IOApp {
@@ -28,15 +29,17 @@ object Main extends IOApp {
   def decryptForever(token: Token)(implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
     val decrypter = new Decrypter
 
-    // Notice that if you don't handle exceptions from Decrypter
-    // they will propagate to this point failing the program.
-    // What should we do in this case?
     decryptingLoop(token, decrypter)
+      .handleErrorWith(_ => decryptForever(token))
   }
 
   def decryptingLoop(token: Token, decrypter: Decrypter)
                     (implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
-    // TODO: this `IO` should request, encrypt and validate passwords in infinite loop
-    ???
+    for {
+      password <- getPassword(token)
+      decrypted <- fullDecryption(password, decrypter)
+      _ <- validatePassword(token, password.encryptedPassword, decrypted)
+      _ <- decryptingLoop(token, decrypter)
+    } yield ()
   }
 }

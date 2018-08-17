@@ -9,22 +9,30 @@ object Decrypting {
                     (implicit timer: Timer[IO]): IO[String] = {
     password match {
       case EncryptedPassword(encrypted) =>
-        ??? // TODO: preparePassword and continue
+        for {
+          prepared <- preparePassword(encrypted, decrypter)
+          decrypted <- fullDecryption(PreparedPassword(password.encryptedPassword, prepared), decrypter)
+        } yield decrypted
 
       case PreparedPassword(_, prepared) =>
-        ??? // TODO: decodePassword and continue
+        for {
+          decoded <- decodePassword(prepared, decrypter)
+          decrypted <- fullDecryption(DecodedPassword(password.encryptedPassword, decoded), decrypter)
+        } yield decrypted
 
       case DecodedPassword(_, decoded) =>
-        ??? // TODO: decryptPassword and return
+        for {
+          decrypted <- decryptPassword(decoded, decrypter)
+        } yield decrypted
     }
   }
 
-  private def preparePassword(password: String, decrypter: Decrypter) =
-    ??? // TODO: Note that decrypter.prepare is side-effecting, blocking function
+  private def preparePassword(password: String, decrypter: Decrypter): IO[PasswordPrepared] =
+    IO(decrypter.prepare(password))
 
-  private def decodePassword(passwordPrepared: PasswordPrepared, decrypter: Decrypter) =
-    ??? // TODO: Note that decrypter.decode is side-effecting, blocking function
+  private def decodePassword(passwordPrepared: PasswordPrepared, decrypter: Decrypter): IO[PasswordDecoded] =
+    IO(decrypter.decode(passwordPrepared))
 
-  private def decryptPassword(passwordDecoded: PasswordDecoded, decrypter: Decrypter) =
-    ??? // TODO: Note that decrypter.decrypt is side-effecting, blocking function
+  private def decryptPassword(passwordDecoded: PasswordDecoded, decrypter: Decrypter): IO[String] =
+    IO(decrypter.decrypt(passwordDecoded))
 }

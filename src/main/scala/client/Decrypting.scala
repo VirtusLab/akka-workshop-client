@@ -1,28 +1,44 @@
 package client
 
+import cats.effect.concurrent.Ref
 import cats.effect.{IO, Timer}
+import cats.syntax.applicativeError._
 import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
 
 object Decrypting {
 
-  def fullDecryption(password: Password, decrypter: Decrypter)
+  def fullDecryption(password: Password, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean])
                     (implicit timer: Timer[IO]): IO[String] = {
+    def handleError: PartialFunction[Throwable, IO[Unit]] = {
+      case _ => cancelSignal.set(true)
+    }
+
+    def checkCancel(): IO[Unit] =
+      for {
+        shouldStop <- cancelSignal.get
+        result <- if (shouldStop) IO.raiseError(CancelException) else IO.unit
+      } yield result
+
     password match {
       case EncryptedPassword(encrypted) =>
         for {
-          prepared <- preparePassword(encrypted, decrypter)
-          decrypted <- fullDecryption(PreparedPassword(password.encryptedPassword, prepared), decrypter)
+          _ <- checkCancel()
+          prepared <- preparePassword(encrypted, decrypter).onError(handleError)
+          _ <- checkCancel()
+          decrypted <- fullDecryption(PreparedPassword(password.encryptedPassword, prepared), decrypter, cancelSignal)
         } yield decrypted
 
       case PreparedPassword(_, prepared) =>
         for {
-          decoded <- decodePassword(prepared, decrypter)
-          decrypted <- fullDecryption(DecodedPassword(password.encryptedPassword, decoded), decrypter)
+          decoded <- decodePassword(prepared, decrypter).onError(handleError)
+          _ <- checkCancel()
+          decrypted <- fullDecryption(DecodedPassword(password.encryptedPassword, decoded), decrypter, cancelSignal)
         } yield decrypted
 
       case DecodedPassword(_, decoded) =>
         for {
-          decrypted <- decryptPassword(decoded, decrypter)
+          decrypted <- decryptPassword(decoded, decrypter).onError(handleError)
+          _ <- checkCancel()
         } yield decrypted
     }
   }

@@ -2,11 +2,10 @@ package coroutines.workshop
 
 import Decrypter
 import kotlinx.coroutines.experimental.*
-import kotlinx.coroutines.experimental.channels.Channel
 import kotlinx.coroutines.experimental.channels.ReceiveChannel
 import kotlinx.coroutines.experimental.channels.SendChannel
-import kotlinx.coroutines.experimental.channels.produce
 import kotlin.coroutines.experimental.CoroutineContext
+import kotlin.coroutines.experimental.coroutineContext
 
 // Class representing finished decryption.
 // It is intended to being used to send data from worker coroutines.
@@ -20,22 +19,14 @@ val executor: CoroutineContext by lazy {
 fun main(args: Array<String>) = runBlocking {
     val api = Api(url = "http://localhost:9000", context = DefaultDispatcher) // remember to change `localhost` to proper url
 
-    val token = api.register(Register("Władimir Iljicz Kotlin")).await().token
+    api.register(Register("Władimir Iljicz Kotlin")).await()
 
     val reset = suspend {
         TODO("You may use this stub in step 3")
     }
-
     while (isActive) {
-        try {
-            with(Decrypter()) {
-                val password = api.requestPassword(PasswordRequest(token)).await().encryptedPassword
-                decrypt(decode(prepare(password)))
-                        .also { api.validate(Validate(token, password, it)) }
-            }
-        } catch (e: Throwable) {
-            println("$e\n")
-        }
+        coroutineContext.cancel()
+        // TODO("You may use this stub in step 2")
     }
 }
 

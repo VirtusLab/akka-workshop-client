@@ -1,4 +1,4 @@
-package kordyjan.workshop.coroutines
+package coroutines.workshop
 
 import Decrypter
 import kotlinx.coroutines.experimental.*

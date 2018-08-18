@@ -1,4 +1,4 @@
-package kordyjan.workshop.coroutines
+package coroutines.workshop
 
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.Unconfined

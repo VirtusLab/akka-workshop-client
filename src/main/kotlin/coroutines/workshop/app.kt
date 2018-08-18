@@ -59,19 +59,13 @@ suspend fun Api.passwords(token: String): ReceiveChannel<String> = produce {
     }
 }
 
-suspend inline fun <T> computation(block: () -> T): T = block().also { yield() }
-
 suspend fun Decrypter.process(
         password: String,
         parent: Job,
         answerChannel: SendChannel<Decryption>
 ) = launch(executor, parent = parent) {
     try {
-        val output = password
-                .let { computation { prepare(it) } }
-                .let { computation { decode(it) } }
-                .let { computation { decrypt(it) } }
-
+        val output = decrypt(decode(prepare(password)))
         answerChannel.send(Decryption(this@process, password, output, parent))
     } catch (e: Throwable) {
         println("$e\n")

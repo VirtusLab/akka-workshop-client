@@ -1,6 +1,7 @@
 package client
 
 import cats.effect.IO
+import cats.effect.concurrent.Ref
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.http4s.Status
@@ -11,8 +12,14 @@ import org.http4s.dsl.io.{POST, uri}
 
 object PasswordClient {
 
-  def getPassword(token: Token)(implicit httpClient: Client[IO]): IO[Password] = {
-    requestPassword(token)
+  def getPassword(token: Token, passwordQueue: Ref[IO, List[Password]])
+                 (implicit httpClient: Client[IO]): IO[Password] = {
+    passwordQueue
+      .modify { passwords => (passwords.drop(1), passwords.headOption) }
+      .flatMap {
+        case Some(pass) => IO.pure(pass)
+        case _ => requestPassword(token)
+      }
   }
 
   def requestToken(userName: String)(implicit httpClient: Client[IO]): IO[Token] = {

@@ -3,20 +3,21 @@ package client
 import cats.effect.concurrent.Ref
 import cats.effect.{IO, Timer}
 import cats.syntax.applicativeError._
+import cats.syntax.apply._
 import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
 
 object Decrypting {
 
-  def fullDecryption(password: Password, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean])
+  def fullDecryption(password: Password, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean], passwordQueue: Ref[IO, List[Password]])
                     (implicit timer: Timer[IO]): IO[String] = {
     def handleError: PartialFunction[Throwable, IO[Unit]] = {
-      case _ => cancelSignal.set(true)
+      case _ => cancelSignal.set(true) *> savePassword(password, passwordQueue)
     }
 
     def checkCancel(): IO[Unit] =
       for {
         shouldStop <- cancelSignal.get
-        result <- if (shouldStop) IO.raiseError(CancelException) else IO.unit
+        result <- if (shouldStop) savePassword(password, passwordQueue) *> IO.raiseError(CancelException) else IO.unit
       } yield result
 
     password match {
@@ -25,14 +26,14 @@ object Decrypting {
           _ <- checkCancel()
           prepared <- preparePassword(encrypted, decrypter).onError(handleError)
           _ <- checkCancel()
-          decrypted <- fullDecryption(PreparedPassword(password.encryptedPassword, prepared), decrypter, cancelSignal)
+          decrypted <- fullDecryption(PreparedPassword(password.encryptedPassword, prepared), decrypter, cancelSignal, passwordQueue)
         } yield decrypted
 
       case PreparedPassword(_, prepared) =>
         for {
           decoded <- decodePassword(prepared, decrypter).onError(handleError)
           _ <- checkCancel()
-          decrypted <- fullDecryption(DecodedPassword(password.encryptedPassword, decoded), decrypter, cancelSignal)
+          decrypted <- fullDecryption(DecodedPassword(password.encryptedPassword, decoded), decrypter, cancelSignal, passwordQueue)
         } yield decrypted
 
       case DecodedPassword(_, decoded) =>
@@ -42,6 +43,11 @@ object Decrypting {
         } yield decrypted
     }
   }
+
+  private def savePassword(password: Password, passwordQueue: Ref[IO, List[Password]]): IO[Unit] =
+    passwordQueue.modify { passwords =>
+      (password :: passwords, ())
+    }
 
   private def preparePassword(password: String, decrypter: Decrypter): IO[PasswordPrepared] =
     IO(decrypter.prepare(password))

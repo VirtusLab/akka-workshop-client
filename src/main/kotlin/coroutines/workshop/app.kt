@@ -25,10 +25,6 @@ fun main(args: Array<String>) = runBlocking {
 
     val newPasswords = api.passwords(token)
 
-    val passwordsToRetry = Channel<String>(Decrypter.maxClientCount)
-
-    val passwords = passwordsToRetry merge newPasswords
-
     var allDecryptions: Job? = null
 
     lateinit var finishedDecryptions: Channel<Decryption>
@@ -38,7 +34,7 @@ fun main(args: Array<String>) = runBlocking {
         finishedDecryptions = Channel(Decrypter.maxClientCount)
         allDecryptions = Job().also { parent ->
             repeat(Decrypter.maxClientCount) {
-                Decrypter().process(passwords.receive(), parent, finishedDecryptions, passwordsToRetry)
+                Decrypter().process(newPasswords.receive(), parent, finishedDecryptions)
             }
         }
     }
@@ -47,7 +43,7 @@ fun main(args: Array<String>) = runBlocking {
 
     while (isActive) {
         for ((decrypter, input, output, parent) in finishedDecryptions) {
-            decrypter.process(passwords.receive(), parent, finishedDecryptions, passwordsToRetry)
+            decrypter.process(newPasswords.receive(), parent, finishedDecryptions)
             api.validate(Validate(token, input, output))
         }
         reset()
@@ -65,20 +61,10 @@ suspend fun Api.passwords(token: String): ReceiveChannel<String> = produce {
 
 suspend inline fun <T> computation(block: () -> T): T = block().also { yield() }
 
-suspend inline infix fun <T> ReceiveChannel<T>.merge(other: ReceiveChannel<T>): ReceiveChannel<T> = produce {
-    while (isActive) {
-        select<T> {
-            onReceive { it }
-            other.onReceive { it }
-        }.also { send(it) }
-    }
-}
-
 suspend fun Decrypter.process(
         password: String,
         parent: Job,
-        answerChannel: SendChannel<Decryption>,
-        retryChannel: SendChannel<String>
+        answerChannel: SendChannel<Decryption>
 ) = launch(executor, parent = parent) {
     try {
         val output = password
@@ -90,6 +76,5 @@ suspend fun Decrypter.process(
     } catch (e: Throwable) {
         println("$e\n")
         if (!answerChannel.isClosedForSend) answerChannel.close()
-        retryChannel.send(password)
     }
 }

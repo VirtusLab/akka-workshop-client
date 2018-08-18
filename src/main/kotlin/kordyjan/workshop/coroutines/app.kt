@@ -9,14 +9,17 @@ import kotlinx.coroutines.experimental.channels.produce
 import kotlinx.coroutines.experimental.selects.select
 import kotlin.coroutines.experimental.CoroutineContext
 
+// Class representing finished decryption.
+// It is intended to being used to send data from worker coroutines.
 data class Decryption(val decrypter: Decrypter, val input: String, val output: String, val parent: Job)
 
+// Coroutine context containing only thread pool of fixed size.
 val executor: CoroutineContext by lazy {
-    newFixedThreadPoolContext(nThreads = 7, name = "decrypters_executor")
+    newFixedThreadPoolContext(nThreads = Decrypter.maxClientCount, name = "decrypters_executor")
 }
 
 fun main(args: Array<String>) = runBlocking {
-    val api = Api(url = "http://localhost:9000", context = DefaultDispatcher)
+    val api = Api(url = "http://localhost:9000", context = DefaultDispatcher) // remember to change `localhost` to proper url
 
     val token = api.register(Register("Władimir Iljicz Kotlin")).await().token
 
@@ -85,7 +88,7 @@ suspend fun Decrypter.process(
 
         answerChannel.send(Decryption(this@process, password, output, parent))
     } catch (e: Throwable) {
-        println("$e\\n")
+        println("$e\n")
         if (!answerChannel.isClosedForSend) answerChannel.close()
         retryChannel.send(password)
     }

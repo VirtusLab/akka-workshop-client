@@ -24,26 +24,27 @@ object Main extends IOApp {
         for {
           token <- requestToken("Piotrek")(client)
           cancelSignal <- Ref.of[IO, Boolean](false)
-          _ <- decryptForever(6, token, cancelSignal)(client, timer)
+          passwordQueue <- Ref[IO].of(List[Password]())
+          _ <- decryptForever(12, token, cancelSignal, passwordQueue)(client, timer)
         } yield ExitCode.Success
       }(_.shutdown)
 
-  def decryptForever(parallelism: Int, token: Token, cancelSignal: Ref[IO, Boolean])
+  def decryptForever(parallelism: Int, token: Token, cancelSignal: Ref[IO, Boolean], passwordQueue: Ref[IO, List[Password]])
                     (implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
     val decrypter = new Decrypter
     List
-      .fill(parallelism)(decryptingLoop(token, decrypter, cancelSignal).handleErrorWith(_ => IO.unit))
+      .fill(parallelism)(decryptingLoop(token, decrypter, cancelSignal, passwordQueue).handleErrorWith(_ => IO.unit))
       .parSequence
-      .flatMap(_ => Ref.of[IO, Boolean](false).flatMap(decryptForever(parallelism, token, _)))
+      .flatMap(_ => Ref.of[IO, Boolean](false).flatMap(decryptForever(parallelism, token, _, passwordQueue)))
   }
 
-  def decryptingLoop(token: Token, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean])
+  def decryptingLoop(token: Token, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean], passwordQueue: Ref[IO, List[Password]])
                     (implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
     for {
-      password <- getPassword(token)
-      decrypted <- fullDecryption(password, decrypter, cancelSignal)
+      password <- getPassword(token, passwordQueue)
+      decrypted <- fullDecryption(password, decrypter, cancelSignal, passwordQueue: Ref[IO, List[Password]])
       _ <- validatePassword(token, password.encryptedPassword, decrypted)
-      _ <- decryptingLoop(token, decrypter, cancelSignal)
+      _ <- decryptingLoop(token, decrypter, cancelSignal, passwordQueue)
     } yield ()
   }
 }

@@ -19,11 +19,12 @@ val executor: CoroutineContext by lazy {
 fun main(args: Array<String>) = runBlocking {
     val api = Api(url = "http://localhost:9000", context = DefaultDispatcher) // remember to change `localhost` to proper url
 
-    api.register(Register("Władimir Iljicz Kotlin")).await()
-
     val reset = suspend {
         TODO("You may use this stub in step 3")
     }
+
+    TODO("Start in step 1 by connecting with server and registering yourself")
+
     while (isActive) {
         coroutineContext.cancel()
         // TODO("You may use this stub in step 2")

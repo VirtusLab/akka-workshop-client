@@ -22,40 +22,26 @@ fun main(args: Array<String>) = runBlocking {
 
     val token = api.register(Register("Władimir Iljicz Kotlin")).await().token
 
-    val newPasswords = api.passwords(token)
-
-    lateinit var finishedDecryptions: Channel<Decryption>
-
     val reset = suspend {
-        finishedDecryptions = Channel(Decrypter.maxClientCount)
-        repeat(Decrypter.maxClientCount) {
-            Decrypter().process(newPasswords.receive(), finishedDecryptions)
-        }
+        TODO("You may use this stub in step 3")
     }
 
-    reset()
-
     while (isActive) {
-        for ((decrypter, input, output) in finishedDecryptions) {
-            decrypter.process(newPasswords.receive(), finishedDecryptions)
-            api.validate(Validate(token, input, output))
+        try {
+            with(Decrypter()) {
+                val password = api.requestPassword(PasswordRequest(token)).await().encryptedPassword
+                decrypt(decode(prepare(password)))
+                        .also { api.validate(Validate(token, password, it)) }
+            }
+        } catch (e: Throwable) {
+            println("$e\n")
         }
     }
 }
 
-suspend fun Api.passwords(token: String): ReceiveChannel<String> = produce {
-    while (isActive) {
-        requestPassword(PasswordRequest(token))
-                .await()
-                .encryptedPassword
-                .also { send(it) }
-    }
-}
+suspend fun Api.passwords(token: String): ReceiveChannel<String> = TODO("You may use this stub in step 3")
 
 suspend fun Decrypter.process(
         password: String,
         answerChannel: SendChannel<Decryption>
-) = launch(executor) {
-    val output = decrypt(decode(prepare(password)))
-    answerChannel.send(Decryption(this@process, password, output))
-}
+): Job = TODO("You may use this stub in step 3")

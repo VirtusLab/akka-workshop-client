@@ -2,6 +2,7 @@ package client
 
 import java.util.concurrent._
 
+import cats.effect.concurrent.Ref
 import cats.effect.{ExitCode, IO, IOApp, Timer}
 import com.virtuslab.akkaworkshop.Decrypter
 import org.http4s.client.Client
@@ -22,25 +23,27 @@ object Main extends IOApp {
       .bracket { client =>
         for {
           token <- requestToken("Piotrek")(client)
-          _ <- decryptForever(2, token)(client, timer)
+          cancelSignal <- Ref.of[IO, Boolean](false)
+          _ <- decryptForever(6, token, cancelSignal)(client, timer)
         } yield ExitCode.Success
       }(_.shutdown)
 
-  def decryptForever(parallelism: Int, token: Token)(implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
+  def decryptForever(parallelism: Int, token: Token, cancelSignal: Ref[IO, Boolean])
+                    (implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
     val decrypter = new Decrypter
     List
-      .fill(parallelism)(decryptingLoop(token, decrypter).handleErrorWith(_ => IO.unit))
+      .fill(parallelism)(decryptingLoop(token, decrypter, cancelSignal).handleErrorWith(_ => IO.unit))
       .parSequence
-      .flatMap(_ => decryptForever(parallelism, token))
+      .flatMap(_ => Ref.of[IO, Boolean](false).flatMap(decryptForever(parallelism, token, _)))
   }
 
-  def decryptingLoop(token: Token, decrypter: Decrypter)
+  def decryptingLoop(token: Token, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean])
                     (implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
     for {
       password <- getPassword(token)
-      decrypted <- fullDecryption(password, decrypter)
+      decrypted <- fullDecryption(password, decrypter, cancelSignal)
       _ <- validatePassword(token, password.encryptedPassword, decrypted)
-      _ <- decryptingLoop(token, decrypter)
+      _ <- decryptingLoop(token, decrypter, cancelSignal)
     } yield ()
   }
 }

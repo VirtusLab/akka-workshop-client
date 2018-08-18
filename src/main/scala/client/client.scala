@@ -20,4 +20,5 @@ package object client {
                               encryptedPassword: String,
                               decryptedPassword: String)
 
+  case object CancelException extends Throwable
 }

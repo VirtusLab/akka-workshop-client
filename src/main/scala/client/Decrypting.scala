@@ -1,28 +1,52 @@
 package client
 
 import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
-import scalaz.zio.IO
-import util.putStrLn
+import scalaz.zio.{IO, Ref}
 
 object Decrypting {
 
-  def fullDecryption(password: Password, decrypter: Decrypter): IO[Throwable, String] = {
+  import scala.concurrent.duration._
+
+  case object ParallelFailure extends IllegalStateException
+
+  private def checkParallelFailure(implicit p: Password, q: Ref[List[Password]], f: Ref[Boolean]): IO[Throwable, Unit] =
+    for {
+      _      <- IO.sleep(2.millis)
+      failed <- f.get
+      _      <- if (failed) q.update(p :: _) *> IO.fail(ParallelFailure) else IO.unit
+    } yield ()
+
+  private def reenqueuePassword(implicit p: Password, q: Ref[List[Password]], f: Ref[Boolean]) =
+    (_: Option[Throwable]) => f.set(true) *> q.update(p :: _).void
+
+  def fullDecryption(
+    implicit
+    password: Password,
+    decrypter: Decrypter,
+    queueRef: Ref[List[Password]],
+    failureFlagRef: Ref[Boolean]
+  ): IO[Throwable, String] = {
     password match {
       case EncryptedPassword(encrypted) =>
-        putStrLn(s"Preparing password: $encrypted") *>
-          preparePassword(encrypted, decrypter).flatMap { prepared =>
-            fullDecryption(PreparedPassword(encrypted, prepared), decrypter)
-          }
-
+        (for {
+          prepared <- preparePassword(encrypted, decrypter).onError(reenqueuePassword)
+          _        <- checkParallelFailure
+        } yield prepared).flatMap { prepared =>
+          fullDecryption(PreparedPassword(encrypted, prepared), decrypter, queueRef, failureFlagRef)
+        }
       case PreparedPassword(encrypted, prepared) =>
-        putStrLn(s"Decoding password: $encrypted") *>
-          decodePassword(prepared, decrypter).flatMap { decoded =>
-            fullDecryption(DecodedPassword(encrypted, decoded), decrypter)
-          }
+        (for {
+          decoded <- decodePassword(prepared, decrypter).onError(reenqueuePassword)
+          _       <- checkParallelFailure
+        } yield decoded).flatMap { decoded =>
+          fullDecryption(DecodedPassword(encrypted, decoded), decrypter, queueRef, failureFlagRef)
+        }
 
-      case DecodedPassword(encrypted, decoded) =>
-        putStrLn(s"Decrypting password: $encrypted") *>
-          decryptPassword(decoded, decrypter)
+      case DecodedPassword(_, decoded) =>
+        for {
+          decrypted <- decryptPassword(decoded, decrypter).onError(reenqueuePassword)
+          _         <- checkParallelFailure
+        } yield decrypted
     }
   }
 

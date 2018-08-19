@@ -6,6 +6,8 @@ import cats.syntax.applicativeError._
 import cats.syntax.apply._
 import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
 
+import scala.concurrent.duration._
+
 object Decrypting {
 
   def fullDecryption(password: Password, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean], passwordQueue: Ref[IO, List[Password]])
@@ -16,7 +18,10 @@ object Decrypting {
 
     def checkCancel(): IO[Unit] =
       for {
-        shouldStop <- cancelSignal.get
+        // This is needed to achieve 100% correctness.
+        // Sometimes one thread can fail and before it can recover from error the other one can go to the next stage
+        // with incorrect result so we're introducing short (non-blocking) delay to account for that.
+        shouldStop <- IO.sleep(2.milli) *> cancelSignal.get
         result <- if (shouldStop) savePassword(password, passwordQueue) *> IO.raiseError(CancelException) else IO.unit
       } yield result
 

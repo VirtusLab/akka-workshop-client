@@ -27,18 +27,21 @@ object Main extends App {
       }
 
   def decryptForever(token: Token)(implicit httpClient: Client[Task]): IO[Nothing, Unit] =
-    Pool.make(4, decryptionTask(token))
-
-  def decryptionTask(token: Token)(implicit httpClient: Client[Task]): IO[Nothing, Unit] =
     (for {
-      decrypter         <- getDecrypter
+      decrypter <- getDecrypter
+      tasks = Seq.fill(8)(decryptionTask(decrypter, token))
+      _ <- IO.parTraverse(tasks)(identity).attempt.void
+    } yield ()).flatMap(_ => decryptForever(token))
+
+  def decryptionTask(decrypter: Decrypter, token: Token)(implicit httpClient: Client[Task]): IO[Throwable, Unit] =
+    (for {
       password          <- getPassword(token)
       decryptedPassword <- fullDecryption(password, decrypter)
       status            <- validatePassword(token, password.encryptedPassword, decryptedPassword)
       _                 <- putStrLn(s"Status for password: ${password.encryptedPassword}: ${status.code}")
     } yield ()).attempt.flatMap {
-      case Left(err) => putStrLn(s"Encountered error: $err")
-      case Right(_)  => IO.unit
+      case Left(err) => IO.fail(err)
+      case Right(_)  => decryptionTask(decrypter, token)
     }
 
   def getDecrypter: IO[Nothing, Decrypter] = IO.point(new Decrypter)

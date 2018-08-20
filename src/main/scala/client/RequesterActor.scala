@@ -3,13 +3,14 @@ package client
 import akka.actor._
 import com.virtuslab.akkaworkshop.Decrypter
 import com.virtuslab.akkaworkshop.PasswordsDistributor._
-
+import akka.pattern.pipe
 import scala.util.Try
 
-class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
+class RequesterActor(remote: PasswordClient) extends Actor with ActorLogging {
 
-  var decrypter = new Decrypter
-  val name      = "Cesar"
+  var decrypter   = new Decrypter
+  val name        = "Cesar"
+  implicit val ec = context.dispatcher
 
   private def decryptPassword(password: String): Try[String] = Try {
     val prepared  = decrypter.prepare(password)
@@ -19,14 +20,14 @@ class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
   }
 
   override def preStart(): Unit =
-    remote ! Register(name)
+    remote.requestToken(Register(name)).pipeTo(self)
 
   override def receive: Receive = starting
 
   def starting: Receive = {
     case Registered(token) =>
       log.info(s"Registered with token $token")
-      remote ! SendMeEncryptedPassword(token)
+      remote.requestPassword(SendMeEncryptedPassword(token)).pipeTo(self)
       context.become(working(token))
   }
 
@@ -35,7 +36,7 @@ class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
       val decrypted = decryptPassword(encryptedPassword)
       decrypted
         .map { decryptedPassword =>
-          remote ! ValidateDecodedPassword(token, encryptedPassword, decryptedPassword)
+          remote.validatePassword(ValidateDecodedPassword(token, encryptedPassword, decryptedPassword)).pipeTo(self)
         }
         .getOrElse {
           decrypter = new Decrypter
@@ -44,17 +45,17 @@ class RequesterActor(remote: ActorRef) extends Actor with ActorLogging {
 
     case PasswordCorrect(decryptedPassword) =>
       log.info(s"Password $decryptedPassword was decrypted successfully")
-      remote ! SendMeEncryptedPassword(token)
+      remote.requestPassword(SendMeEncryptedPassword(token)).pipeTo(self)
 
     case PasswordIncorrect(decryptedPassword, correctPassword) =>
       log.error(s"Password $decryptedPassword was not decrypted correctly, should be $correctPassword")
-      remote ! SendMeEncryptedPassword(token)
+      remote.requestPassword(SendMeEncryptedPassword(token)).pipeTo(self)
   }
 
 }
 
 object RequesterActor {
 
-  def props(remote: ActorRef) = Props(new RequesterActor(remote))
+  def props(remote: PasswordClient) = Props(new RequesterActor(remote))
 
 }

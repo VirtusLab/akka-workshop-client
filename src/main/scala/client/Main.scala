@@ -19,28 +19,29 @@ object Main extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
     Http1Client[IO]()
-      .bracket { client =>
+      .bracket { httpClient =>
+        val client = PasswordClient.create(httpClient)
         for {
-          token <- requestToken("Piotrek")(client)
-          _ <- decryptForever(2, token)(client, timer)
+          token <- client.requestToken("Piotrek")
+          _ <- decryptForever(2, client, token)(timer)
         } yield ExitCode.Success
       }(_.shutdown)
 
-  def decryptForever(parallelism: Int, token: Token)(implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
+  def decryptForever(parallelism: Int, client: PasswordClient[IO], token: Token)(implicit timer: Timer[IO]): IO[Unit] = {
     val decrypter = new Decrypter
     List
-      .fill(parallelism)(decryptingLoop(token, decrypter).handleErrorWith(_ => IO.unit))
+      .fill(parallelism)(decryptingLoop(client, token, decrypter).handleErrorWith(_ => IO.unit))
       .parSequence
-      .flatMap(_ => decryptForever(parallelism, token))
+      .flatMap(_ => decryptForever(parallelism, client, token))
   }
 
-  def decryptingLoop(token: Token, decrypter: Decrypter)
-                    (implicit httpClient: Client[IO], timer: Timer[IO]): IO[Unit] = {
+  def decryptingLoop(client: PasswordClient[IO], token: Token, decrypter: Decrypter)
+                    (implicit timer: Timer[IO]): IO[Unit] = {
     for {
-      password <- getPassword(token)
+      password <- PasswordClient.getPassword(client, token)
       decrypted <- fullDecryption(password, decrypter)
-      _ <- validatePassword(token, password.encryptedPassword, decrypted)
-      _ <- decryptingLoop(token, decrypter)
+      _ <- client.validatePassword(token, password.encryptedPassword, decrypted)
+      _ <- decryptingLoop(client, token, decrypter)
     } yield ()
   }
 }

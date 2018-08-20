@@ -10,10 +10,10 @@ import scala.concurrent.duration._
 
 object Decrypting {
 
-  def fullDecryption(password: Password, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean], passwordQueue: Ref[IO, List[Password]])
-                    (implicit timer: Timer[IO]): IO[String] = {
+  def fullDecryption(password: Password, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean],
+                     passwordQueue: PasswordQueue[IO, Password])(implicit timer: Timer[IO]): IO[String] = {
     def handleError: PartialFunction[Throwable, IO[Unit]] = {
-      case _ => cancelSignal.set(true) *> savePassword(password, passwordQueue)
+      case _ => cancelSignal.set(true) *> passwordQueue.save(password)
     }
 
     def checkCancel(): IO[Unit] =
@@ -22,7 +22,7 @@ object Decrypting {
         // Sometimes one thread can fail and before it can recover from error the other one can go to the next stage
         // with incorrect result so we're introducing short (non-blocking) delay to account for that.
         shouldStop <- IO.sleep(2.milli) *> cancelSignal.get
-        result <- if (shouldStop) savePassword(password, passwordQueue) *> IO.raiseError(CancelException) else IO.unit
+        result <- if (shouldStop) passwordQueue.save(password) *> IO.raiseError(CancelException) else IO.unit
       } yield result
 
     password match {
@@ -48,11 +48,6 @@ object Decrypting {
         } yield decrypted
     }
   }
-
-  private def savePassword(password: Password, passwordQueue: Ref[IO, List[Password]]): IO[Unit] =
-    passwordQueue.modify { passwords =>
-      (password :: passwords, ())
-    }
 
   private def preparePassword(password: String, decrypter: Decrypter): IO[PasswordPrepared] =
     IO(decrypter.prepare(password))

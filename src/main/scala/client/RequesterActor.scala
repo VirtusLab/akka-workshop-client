@@ -1,10 +1,10 @@
 package client
 
-import akka.actor.{Actor, ActorSelection}
+import akka.actor.Actor
 import com.virtuslab.akkaworkshop.Decrypter
 import com.virtuslab.akkaworkshop.PasswordsDistributor._
 
-class RequesterActor extends Actor {
+class RequesterActor(passwordClient: PasswordClient) extends Actor {
 
   val decrypter = new Decrypter
 
@@ -15,13 +15,13 @@ class RequesterActor extends Actor {
     decrypted
   }
 
+  override def preStart(): Unit = {
+    // TODO Register yourself by sending Register("your nick") to remote actor from selection
+    // HINT: Use pipeTo pattern
+  }
+
   // receive with messages that can be sent by the server
   override def receive: Receive = {
-    case remoteActorSelection: ActorSelection =>
-      // TODO Register yourself by sending Register("your nick") to remote actor from selection
-      // HINT: Using actor ref instead of actor selection is recommended
-      println(s"Got remote actor selection: $remoteActorSelection")
-
     case Registered(token) =>
       // TODO You are registered
       // Now we need to sore ths token and use it to request and check your passwords

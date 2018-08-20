@@ -3,12 +3,9 @@ package client
 import java.util.concurrent._
 
 import cats.effect.{ExitCode, IO, IOApp, Timer}
-import client.Decrypting.fullDecryption
-import com.virtuslab.akkaworkshop.Decrypter
-import org.http4s.client.blaze.Http1Client
 import cats.instances.list._
 import cats.syntax.all._
-import client.Decrypting._
+import client.Decrypting.fullDecryption
 import com.virtuslab.akkaworkshop.Decrypter
 import org.http4s.client.blaze.Http1Client
 

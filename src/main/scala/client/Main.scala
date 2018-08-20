@@ -34,10 +34,10 @@ object Main extends IOApp {
   def decryptingLoop(client: PasswordClient[IO], token: Token, decrypter: Decrypter)
                     (implicit timer: Timer[IO]): IO[Unit] = {
     for {
-      password <- PasswordClient.getPassword(token)
+      password <- PasswordClient.getPassword(client, token)
       decrypted <- fullDecryption(password, decrypter)
       _ <- client.validatePassword(token, password.encryptedPassword, decrypted)
-      _ <- decryptingLoop(token, decrypter)
+      _ <- decryptingLoop(client, token, decrypter)
     } yield ()
   }
 }

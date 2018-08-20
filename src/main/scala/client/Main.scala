@@ -2,12 +2,11 @@ package client
 
 import java.util.concurrent._
 
-import cats.Monad
 import cats.effect.concurrent.Ref
 import cats.effect.{ExitCode, IO, IOApp, Timer}
 import cats.instances.list._
 import cats.syntax.all._
-import client.Decrypting._
+import client.Decrypting.fullDecryption
 import com.virtuslab.akkaworkshop.Decrypter
 import org.http4s.client.blaze.Http1Client
 
@@ -51,12 +50,11 @@ object Main extends IOApp {
     } yield ()
   }
 
-  def getPassword[F[+ _] : Monad](client: PasswordClient[F], passwordQueue: PasswordQueue[F, Password],
-                                  token: Token): F[Password] = {
+  def getPassword(client: PasswordClient[IO], passwordQueue: PasswordQueue[IO, Password], token: Token): IO[Password] = {
     passwordQueue
       .take
       .flatMap {
-        case Some(pass) => pass.pure[F]
+        case Some(pass) => IO.pure(pass)
         case _ => client.requestPassword(token)
       }
   }

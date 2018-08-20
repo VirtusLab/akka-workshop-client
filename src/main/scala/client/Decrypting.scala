@@ -18,8 +18,6 @@ object Decrypting {
 
     def checkCancel(): IO[Unit] =
       for {
-        shouldStop <- cancelSignal.get
-        result <- if (shouldStop) passwordQueue.put(password) *> IO.raiseError(CancelException) else IO.unit
         // This is needed to achieve 100% correctness.
         // Sometimes one thread can fail and before it can recover from error the other one can go to the next stage
         // with incorrect result so we're introducing short (non-blocking) delay to account for that.

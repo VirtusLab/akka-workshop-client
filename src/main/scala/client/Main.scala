@@ -3,13 +3,11 @@ package client
 import java.util.concurrent._
 
 import cats.effect.{ExitCode, IO, IOApp, Timer}
-import com.virtuslab.akkaworkshop.Decrypter
-import org.http4s.client.Client
-import org.http4s.client.blaze.Http1Client
-import client.Decrypting._
-import client.PasswordClient._
 import cats.instances.list._
 import cats.syntax.all._
+import client.Decrypting._
+import com.virtuslab.akkaworkshop.Decrypter
+import org.http4s.client.blaze.Http1Client
 
 import scala.concurrent.ExecutionContext
 

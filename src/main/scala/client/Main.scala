@@ -41,7 +41,7 @@ object Main extends IOApp {
     } yield ()
   }
 
-  def getPassword[F[+_]](client: PasswordClient[F], token: Token): F[Password] = {
+  def getPassword(client: PasswordClient[IO], token: Token): IO[Password] = {
     client.requestPassword(token)
   }
 }

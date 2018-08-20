@@ -1,64 +1,56 @@
 package client
 
-import scala.concurrent.duration._
-
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorLogging, ActorRef, AllForOneStrategy, Props}
 import com.virtuslab.akkaworkshop.PasswordsDistributor._
 import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
+import akka.pattern.pipe
 
 object RequesterActorClusterSingleton {
-  case class GetPasswordDistributor(nodeSupervisor: ActorRef)
-  case class ReceivePasswordDistributor(token: String, passwordDistributor: ActorRef)
+  case class GetToken(nodeSupervisor: ActorRef)
+  case class ReceiveToken(token: String)
 }
 
 class RequesterActorClusterSingleton(nickname: String) extends Actor with ActorLogging {
   import RequesterActorClusterSingleton._
 
+  import context.system
   import context.dispatcher
+
+  //register
+  val passwordClient = new PasswordClient()
+  passwordClient.requestToken(Register(nickname)).pipeTo(self)
 
   val restartingStrategy: AllForOneStrategy =
     AllForOneStrategy() { case _: Exception => Restart }
-
-  context
-    .actorSelection(
-      "akka.tcp://application@headquarters:9552/user/PasswordsDistributor"
-    )
-    .resolveOne(5.seconds)
-    .foreach(self ! _)
 
   // receive with messages that can be sent by the server
   override def receive: Receive = initializing(Set.empty[ActorRef])
 
   def initializing(awaitingSupervisors: Set[ActorRef]): Receive = {
-    case passwordDistributor: ActorRef =>
-      passwordDistributor ! Register(nickname)
-      context.become(remoteRef(passwordDistributor, awaitingSupervisors))
+    case Registered(token) =>
+      //send password distributor and node to awaiting nodes
+      log.info(s"Singleton $nickname has been registered")
+      awaitingSupervisors.foreach(_ ! RequesterActorClusterSingleton.ReceiveToken(token))
+      context.become(withToken(token))
 
     //store all awaiting nodes
-    case GetPasswordDistributor(nodeSupervisor) =>
+    case GetToken(nodeSupervisor) =>
       log.info(s"New node is awaiting for password distributor ${nodeSupervisor.path}")
       context.become(initializing(awaitingSupervisors + nodeSupervisor))
   }
 
-  def remoteRef(passwordDistributor: ActorRef, awaitingSupervisors: Set[ActorRef]): Receive = {
-    case Registered(token) =>
-      //send password distributor and node to awaiting nodes
-      log.info(s"Singleton $nickname has been registered")
-      awaitingSupervisors.foreach(_ ! ReceivePasswordDistributor(token, passwordDistributor))
-      context.become(withToken(passwordDistributor, token))
-  }
-
-  def withToken(passwordDistributor: ActorRef, token: String): Receive = {
-    case GetPasswordDistributor(nodeSupervisor) =>
+  def withToken(token: String): Receive = {
+    case GetToken(nodeSupervisor) =>
       log.info(s"New node has joined ${nodeSupervisor.path}")
-      nodeSupervisor ! ReceivePasswordDistributor(token, passwordDistributor)
+      nodeSupervisor ! RequesterActorClusterSingleton.ReceiveToken(token)
   }
 }
 
 class NodeSupervisor(requesterSingleton: ActorRef) extends Actor {
 
-  requesterSingleton ! RequesterActorClusterSingleton.GetPasswordDistributor(self)
+  implicit val system = context.system
+  requesterSingleton ! RequesterActorClusterSingleton.GetToken(self)
 
   val workersNumber = 4
 
@@ -66,9 +58,9 @@ class NodeSupervisor(requesterSingleton: ActorRef) extends Actor {
     AllForOneStrategy() { case _: Exception => Restart }
 
   override def receive: Receive = {
-    case RequesterActorClusterSingleton.ReceivePasswordDistributor(token, passwordDistributor) =>
+    case RequesterActorClusterSingleton.ReceiveToken(token) =>
       (1 to workersNumber).foreach(
-        _ => context.actorOf(Props(classOf[Worker], token, passwordDistributor)) ! Worker.Start
+        _ => context.actorOf(Props(classOf[Worker], token, new PasswordClient())) ! Worker.Start
       )
   }
 }
@@ -83,8 +75,9 @@ object Worker {
   final case class Decrypted(decoded: Decoded, passwordDecrypted: String)                  extends Messages
 }
 
-class Worker(token: String, remoteActor: ActorRef) extends Actor with ActorLogging {
+class Worker(token: String, remote: PasswordClient) extends Actor with ActorLogging {
   import client.Worker._
+  import context.dispatcher
 
   val decrypter = new Decrypter
 
@@ -94,16 +87,16 @@ class Worker(token: String, remoteActor: ActorRef) extends Actor with ActorLoggi
 
   def idle(): Receive = {
     case Start =>
-      remoteActor ! SendMeEncryptedPassword(token)
+      remote.requestPassword(SendMeEncryptedPassword(token)).pipeTo(self)
       context.become(preparing())
 
     case PasswordCorrect(decryptedPassword) =>
       log.info(s"PasswordCorrect: $decryptedPassword")
-      remoteActor ! SendMeEncryptedPassword(token)
+      remote.requestPassword(SendMeEncryptedPassword(token)).pipeTo(self)
 
     case PasswordIncorrect(decryptedPassword, correctPassword) =>
       log.error(s"PasswordIncorrect: $decryptedPassword should be $correctPassword")
-      remoteActor ! SendMeEncryptedPassword(token)
+      remote.requestPassword(SendMeEncryptedPassword(token)).pipeTo(self)
 
     //In case of restart, take step back as result can be broken
     case encrypted: EncryptedPassword =>
@@ -143,11 +136,15 @@ class Worker(token: String, remoteActor: ActorRef) extends Actor with ActorLoggi
 
   def sending(): Receive = {
     case decrypted: Decrypted =>
-      remoteActor ! ValidateDecodedPassword(
-        token = token,
-        encryptedPassword = decrypted.decoded.prepared.passwordEncrypted,
-        decryptedPassword = decrypted.passwordDecrypted
-      )
+      remote
+        .validatePassword(
+          ValidateDecodedPassword(
+            token = token,
+            encryptedPassword = decrypted.decoded.prepared.passwordEncrypted,
+            decryptedPassword = decrypted.passwordDecrypted
+          )
+        )
+        .pipeTo(self)
       context.become(idle())
   }
 

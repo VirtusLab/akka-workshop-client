@@ -2,6 +2,7 @@ package client
 
 import java.util.concurrent._
 
+import cats.Monad
 import cats.effect.concurrent.Ref
 import cats.effect.{ExitCode, IO, IOApp, Timer}
 import cats.instances.list._
@@ -23,28 +24,40 @@ object Main extends IOApp {
         for {
           token <- client.requestToken("Piotrek")
           cancelSignal <- Ref.of[IO, Boolean](false)
-          passwordQueue <- Ref[IO].of(List[Password]())
-
-          _ <- decryptForever(2, client, token, cancelSignal, passwordQueue)(timer)
+          passwordQueue <- PasswordQueue.create[IO]
+          _ <- decryptForever(12, client, token, cancelSignal, passwordQueue)(timer)
         } yield ExitCode.Success
       }(_.shutdown)
 
-  def decryptForever(parallelism: Int, client: PasswordClient[IO], token: Token, cancelSignal: Ref[IO, Boolean], passwordQueue: Ref[IO, List[Password]])(implicit timer: Timer[IO]): IO[Unit] = {
+  def decryptForever(parallelism: Int, client: PasswordClient[IO],
+                     token: Token, cancelSignal: Ref[IO, Boolean],
+                     passwordQueue: PasswordQueue[IO, Password])(implicit timer: Timer[IO]): IO[Unit] = {
     val decrypter = new Decrypter
     List
       .fill(parallelism)(decryptingLoop(client, token, decrypter, cancelSignal, passwordQueue).handleErrorWith(_ => IO.unit))
       .parSequence
-      .flatMap(_ => decryptForever(parallelism, client, token, cancelSignal))
+      .flatMap(_ => decryptForever(parallelism, client, token, cancelSignal, passwordQueue))
       .flatMap(_ => Ref.of[IO, Boolean](false).flatMap(decryptForever(parallelism, client, token, _, passwordQueue)))
   }
 
-  def decryptingLoop(client: PasswordClient[IO], token: Token, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean], passwordQueue: Ref[IO, List[Password]])
-                    (implicit timer: Timer[IO]): IO[Unit] = {
+  def decryptingLoop(client: PasswordClient[IO], token: Token,
+                     decrypter: Decrypter, cancelSignal: Ref[IO, Boolean],
+                     passwordQueue: PasswordQueue[IO, Password])(implicit timer: Timer[IO]): IO[Unit] = {
     for {
-      password <- PasswordClient.getPassword(client, token, passwordQueue)
-      decrypted <- fullDecryption(password, decrypter, cancelSignal)
+      password <- getPassword(client, passwordQueue, token)
+      decrypted <- fullDecryption(password, decrypter, cancelSignal, passwordQueue)
       _ <- client.validatePassword(token, password.encryptedPassword, decrypted)
       _ <- decryptingLoop(client, token, decrypter, cancelSignal, passwordQueue)
     } yield ()
+  }
+
+  def getPassword[F[+ _] : Monad](client: PasswordClient[F], passwordQueue: PasswordQueue[F, Password],
+                                  token: Token): F[Password] = {
+    passwordQueue
+      .take
+      .flatMap {
+        case Some(pass) => pass.pure[F]
+        case _ => client.requestPassword(token)
+      }
   }
 }

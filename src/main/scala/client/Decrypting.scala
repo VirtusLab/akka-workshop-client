@@ -8,16 +8,16 @@ import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
 
 object Decrypting {
 
-  def fullDecryption(password: Password, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean], passwordQueue: Ref[IO, List[Password]])
-                    (implicit timer: Timer[IO]): IO[String] = {
+  def fullDecryption(password: Password, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean],
+                     passwordQueue: PasswordQueue[IO, Password])(implicit timer: Timer[IO]): IO[String] = {
     def handleError: PartialFunction[Throwable, IO[Unit]] = {
-      case _ => cancelSignal.set(true) *> savePassword(password, passwordQueue)
+      case _ => cancelSignal.set(true) *> passwordQueue.save(password)
     }
 
     def checkCancel(): IO[Unit] =
       for {
         shouldStop <- cancelSignal.get
-        result <- if (shouldStop) savePassword(password, passwordQueue) *> IO.raiseError(CancelException) else IO.unit
+        result <- if (shouldStop) passwordQueue.save(password) *> IO.raiseError(CancelException) else IO.unit
       } yield result
 
     password match {
@@ -43,11 +43,6 @@ object Decrypting {
         } yield decrypted
     }
   }
-
-  private def savePassword(password: Password, passwordQueue: Ref[IO, List[Password]]): IO[Unit] =
-    passwordQueue.modify { passwords =>
-      (password :: passwords, ())
-    }
 
   private def preparePassword(password: String, decrypter: Decrypter): IO[PasswordPrepared] =
     IO(decrypter.prepare(password))

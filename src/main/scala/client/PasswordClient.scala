@@ -1,7 +1,6 @@
 package client
 
 import cats.effect.IO
-import cats.effect.concurrent.Ref
 import io.circe.generic.auto._
 import io.circe.syntax._
 import org.http4s.Status
@@ -19,18 +18,6 @@ abstract class PasswordClient[F[_]](httpClient: Client[F]) {
 }
 
 object PasswordClient {
-
-  def getPassword[F[+_]](client: PasswordClient[F], token: Token): F[Password] = {
-    client.requestPassword(token)
-  def getPassword(token: Token, passwordQueue: Ref[IO, List[Password]])
-                 (implicit httpClient: Client[IO]): IO[Password] = {
-    passwordQueue
-      .modify { passwords => (passwords.drop(1), passwords.headOption) }
-      .flatMap {
-        case Some(pass) => IO.pure(pass)
-        case _ => requestPassword(token)
-      }
-  }
 
   def create(httpClient: Client[IO]): PasswordClient[IO] =
     new PasswordClient[IO](httpClient) {

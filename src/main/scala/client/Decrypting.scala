@@ -9,15 +9,15 @@ import com.virtuslab.akkaworkshop.{Decrypter, PasswordDecoded, PasswordPrepared}
 object Decrypting {
 
   def fullDecryption(password: Password, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean],
-                     passwordQueue: PasswordQueue[IO, Password])(implicit timer: Timer[IO]): IO[String] = {
+                     passwordQueue: PasswordQueue[IO])(implicit timer: Timer[IO]): IO[String] = {
     def handleError: PartialFunction[Throwable, IO[Unit]] = {
-      case _ => cancelSignal.set(true) *> passwordQueue.save(password)
+      case _ => cancelSignal.set(true) *> passwordQueue.put(password)
     }
 
     def checkCancel(): IO[Unit] =
       for {
         shouldStop <- cancelSignal.get
-        result <- if (shouldStop) passwordQueue.save(password) *> IO.raiseError(CancelException) else IO.unit
+        result <- if (shouldStop) passwordQueue.put(password) *> IO.raiseError(CancelException) else IO.unit
       } yield result
 
     password match {

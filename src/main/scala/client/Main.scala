@@ -33,7 +33,7 @@ object Main extends IOApp {
 
   def decryptingLoop(client: PasswordClient[IO], token: Token, decrypter: Decrypter)
                     (implicit timer: Timer[IO]): IO[Unit] = {
-    // TODO: this `IO` should request, encrypt and validate passwords in infinite loop
+    // TODO: this `IO` should request, decrypt and validate passwords in infinite loop
     ???
   }
 

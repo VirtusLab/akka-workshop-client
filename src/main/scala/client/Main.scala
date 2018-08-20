@@ -6,7 +6,7 @@ import cats.effect.concurrent.Ref
 import cats.effect.{ExitCode, IO, IOApp, Timer}
 import cats.instances.list._
 import cats.syntax.all._
-import client.Decrypting._
+import client.Decrypting.fullDecryption
 import com.virtuslab.akkaworkshop.Decrypter
 import org.http4s.client.blaze.Http1Client
 
@@ -39,10 +39,14 @@ object Main extends IOApp {
   def decryptingLoop(client: PasswordClient[IO], token: Token, decrypter: Decrypter, cancelSignal: Ref[IO, Boolean])
                     (implicit timer: Timer[IO]): IO[Unit] = {
     for {
-      password <- PasswordClient.getPassword(client, token)
+      password <- getPassword(client, token)
       decrypted <- fullDecryption(password, decrypter, cancelSignal)
       _ <- client.validatePassword(token, password.encryptedPassword, decrypted)
       _ <- decryptingLoop(client, token, decrypter, cancelSignal)
     } yield ()
+  }
+
+  def getPassword(client: PasswordClient[IO], token: Token): IO[Password] = {
+    client.requestPassword(token)
   }
 }

@@ -30,7 +30,7 @@ object Main extends IOApp {
 
   def decryptForever(parallelism: Int, client: PasswordClient[IO],
                      token: Token, cancelSignal: Ref[IO, Boolean],
-                     passwordQueue: PasswordQueue[IO, Password])(implicit timer: Timer[IO]): IO[Unit] = {
+                     passwordQueue: PasswordQueue[IO])(implicit timer: Timer[IO]): IO[Unit] = {
     val decrypter = new Decrypter
     List
       .fill(parallelism)(decryptingLoop(client, token, decrypter, cancelSignal, passwordQueue).handleErrorWith(_ => IO.unit))
@@ -41,7 +41,7 @@ object Main extends IOApp {
 
   def decryptingLoop(client: PasswordClient[IO], token: Token,
                      decrypter: Decrypter, cancelSignal: Ref[IO, Boolean],
-                     passwordQueue: PasswordQueue[IO, Password])(implicit timer: Timer[IO]): IO[Unit] = {
+                     passwordQueue: PasswordQueue[IO])(implicit timer: Timer[IO]): IO[Unit] = {
     for {
       password <- getPassword(client, passwordQueue, token)
       decrypted <- fullDecryption(password, decrypter, cancelSignal, passwordQueue)
@@ -50,7 +50,7 @@ object Main extends IOApp {
     } yield ()
   }
 
-  def getPassword(client: PasswordClient[IO], passwordQueue: PasswordQueue[IO, Password], token: Token): IO[Password] = {
+  def getPassword(client: PasswordClient[IO], passwordQueue: PasswordQueue[IO], token: Token): IO[Password] = {
     passwordQueue
       .take
       .flatMap {

@@ -40,4 +40,8 @@ object Main extends IOApp {
       _ <- decryptingLoop(client, token, decrypter)
     } yield ()
   }
+
+  def getPassword[F[+_]](client: PasswordClient[F], token: Token): F[Password] = {
+    client.requestPassword(token)
+  }
 }

@@ -36,4 +36,8 @@ object Main extends IOApp {
     // TODO: this `IO` should request, encrypt and validate passwords in infinite loop
     ???
   }
+
+  def getPassword[F[+_]](client: PasswordClient[F], token: Token): F[Password] = {
+    client.requestPassword(token)
+  }
 }

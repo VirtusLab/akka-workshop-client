@@ -19,10 +19,6 @@ abstract class PasswordClient[F[_]](httpClient: Client[F]) {
 
 object PasswordClient {
 
-  def getPassword[F[+_]](client: PasswordClient[F], token: Token): F[Password] = {
-    client.requestPassword(token)
-  }
-
   def create(httpClient: Client[IO]): PasswordClient[IO] =
     new PasswordClient[IO](httpClient) {
       override def requestToken(userName: String): IO[Token] = {

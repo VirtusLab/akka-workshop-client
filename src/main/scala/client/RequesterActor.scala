@@ -4,9 +4,13 @@ import akka.actor._
 import akka.routing.RoundRobinGroup
 import client.RequesterActor.RegisterSupervisor
 import com.virtuslab.akkaworkshop.PasswordsDistributor._
+import akka.pattern.pipe
 
 class RequesterActor extends Actor with ActorLogging {
 
+  implicit val ec = context.dispatcher
+
+  val remote        = new PasswordClient()(context.system)
   var supervisorSet = Set.empty[(ActorRef, Int)]
   val name          = "Cesar"
 
@@ -15,55 +19,50 @@ class RequesterActor extends Actor with ActorLogging {
     context.actorOf(RoundRobinGroup(addresses).props(), s"router_${supervisorSet.size}")
   }
 
-  override def preStart() = {
-    val remoteIp   = "headquarters"
-    val remotePort = 9552
-    val remoteSelection =
-      context.actorSelection(s"akka.tcp://application@$remoteIp:$remotePort/user/PasswordsDistributor")
-    remoteSelection ! Register(name)
-  }
+  override def preStart() =
+    remote.requestToken(Register(name)).pipeTo(self)
 
   override def receive: Receive = starting
 
   def starting: Receive = {
     case Registered(token) =>
       log.info(s"Registered with token $token")
-      sender() ! SendMeEncryptedPassword(token)
+      remote.requestPassword(SendMeEncryptedPassword(token)).pipeTo(self)
 
       val router = createRouter
-      context.become(registered(token, router, sender()))
+      context.become(registered(token, router))
 
       for {
         (supRef, num) <- supervisorSet
         _             <- 0 until num
-      } sender() ! SendMeEncryptedPassword(token)
+      } remote.requestPassword(SendMeEncryptedPassword(token)).pipeTo(self)
 
     case RegisterSupervisor(ref, num) =>
       supervisorSet = supervisorSet + (ref -> num)
   }
 
-  def registered(token: String, router: ActorRef, remote: ActorRef): Receive = {
+  def registered(token: String, router: ActorRef): Receive = {
 
     case RegisterSupervisor(ref, num) =>
       supervisorSet = supervisorSet + (ref -> num)
-      for (_ <- 0 until num) remote ! SendMeEncryptedPassword(token)
+      for (_ <- 0 until num) remote.requestPassword(SendMeEncryptedPassword(token)).pipeTo(self)
       context.stop(router)
       val newRouter = createRouter
-      context.become(registered(token, newRouter, remote))
+      context.become(registered(token, newRouter))
 
     case encryptedPassword: EncryptedPassword =>
       router ! encryptedPassword
 
     case ValidateDecodedPassword(_, encrypted, decrypted) =>
-      remote ! ValidateDecodedPassword(token, encrypted, decrypted)
+      remote.validatePassword(ValidateDecodedPassword(token, encrypted, decrypted)).pipeTo(self)
 
     case PasswordCorrect(decryptedPassword) =>
       log.info(s"Password $decryptedPassword was decrypted successfully")
-      remote ! SendMeEncryptedPassword(token)
+      remote.requestPassword(SendMeEncryptedPassword(token)).pipeTo(self)
 
     case PasswordIncorrect(decryptedPassword, correctPassword) =>
       log.error(s"Password $decryptedPassword was not decrypted correctly, should be $correctPassword")
-      remote ! SendMeEncryptedPassword(token)
+      remote.requestPassword(SendMeEncryptedPassword(token)).pipeTo(self)
   }
 
 }

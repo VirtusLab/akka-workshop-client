@@ -15,12 +15,10 @@ object PasswordQueue {
     Ref.of[F, List[Password]](List.empty).map { state =>
       new PasswordQueue[F] {
         def take: F[Option[Password]] =
-          state.modify { passwords => (passwords.drop(1), passwords.headOption) }
+          state.modify(passwords => (passwords.drop(1), passwords.headOption))
 
         def put(password: Password): F[Unit] =
-          state.modify { passwords =>
-            (password :: passwords, ())
-          }
+          state.modify(passwords => (password :: passwords, ()))
       }
     }
 }

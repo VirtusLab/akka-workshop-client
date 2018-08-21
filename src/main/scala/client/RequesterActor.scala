@@ -52,7 +52,7 @@ class NodeSupervisor(requesterSingleton: ActorRef) extends Actor {
   implicit val system = context.system
   requesterSingleton ! RequesterActorClusterSingleton.GetToken(self)
 
-  val workersNumber = 4
+  val workersNumber = 7
 
   override val supervisorStrategy =
     AllForOneStrategy() { case _: Exception => Restart }

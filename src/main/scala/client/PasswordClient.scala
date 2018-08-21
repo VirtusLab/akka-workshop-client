@@ -11,11 +11,13 @@ import com.virtuslab.akkaworkshop.PasswordsDistributor._
 import spray.json._
 
 class PasswordClient()(implicit actorSystem: ActorSystem) extends JsonSupport {
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer     = ActorMaterializer()
   implicit val executionContext = actorSystem.dispatcher
 
+  private val http = Http()
+
   def requestToken(register: Register): Future[Registered] = {
-    Http()
+    http
       .singleRequest(
         HttpRequest(
           HttpMethods.POST,
@@ -27,7 +29,7 @@ class PasswordClient()(implicit actorSystem: ActorSystem) extends JsonSupport {
   }
 
   def requestPassword(sendMeEncryptedPassword: SendMeEncryptedPassword): Future[EncryptedPassword] = {
-    Http()
+    http
       .singleRequest(
         HttpRequest(
           HttpMethods.POST,
@@ -39,7 +41,7 @@ class PasswordClient()(implicit actorSystem: ActorSystem) extends JsonSupport {
   }
 
   def validatePassword(validatePassword: ValidateDecodedPassword): Future[PDMessageResponse] = {
-    Http()
+    http
       .singleRequest(
         HttpRequest(
           HttpMethods.POST,

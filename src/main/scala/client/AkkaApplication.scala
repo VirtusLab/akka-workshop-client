@@ -10,7 +10,7 @@ object AkkaApplication extends App {
 
   implicit val timeout = Timeout(10.seconds)
 
-  val system = ActorSystem("RequesterSystem")
+  implicit val system = ActorSystem("RequesterSystem")
 
   val remoteIp   = "headquarters"
   val remotePort = 9552
@@ -20,12 +20,14 @@ object AkkaApplication extends App {
   remoteServer
     .resolveOne()
     .map { remoteServerRef =>
-      system.actorOf(RequesterActor.props(remoteServerRef), name = "requester")
+
     }
     .failed
     .foreach { error =>
       println(s"Unable to establish connection to $remoteIp:$remotePort; ${error.getMessage}")
       system.terminate()
     }
+
+  system.actorOf(RequesterActor.props(new PasswordClient()), name = "requester")
 
 }

@@ -16,8 +16,10 @@ class RequesterActor(passwordClient: PasswordClient) extends Actor {
   }
 
   override def preStart(): Unit = {
-    // TODO Register yourself by sending Register("your nick") to remote actor from selection
-    // HINT: Use pipeTo pattern
+    // TODO Register yourself by sending Register("your nick") - passwordClient.requestToken(...)
+    // HINT: Use pipeTo pattern (remember about execution context - context.dispatcher can be used)
+    // https://doc.akka.io/docs/akka/2.5.5/scala/actors.html#ask-send-and-receive-future
+    // send this token back to yourself - use `self` reference
   }
 
   // receive with messages that can be sent by the server
@@ -25,12 +27,13 @@ class RequesterActor(passwordClient: PasswordClient) extends Actor {
     case Registered(token) =>
       // TODO You are registered
       // Now we need to sore ths token and use it to request and check your passwords
-      // use SendMeEncryptedPassword(token)
+      // use SendMeEncryptedPassword(token) - passwordClient.requestPassword(...)
       println(s"Registered! Token: $token")
 
     case EncryptedPassword(encryptedPassword) =>
       // TODO Decrypt this password using decrypter instance
       // And send it back using ValidateDecodedPassword(token, encryptedPassword, decryptedPassword)
+      //password.validatePassword(...)
       println(s"Password to decrypt: $encryptedPassword")
 
     case PasswordCorrect(decryptedPassword) =>

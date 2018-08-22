@@ -24,7 +24,7 @@ object Main extends IOApp {
           token <- client.requestToken("Piotrek")
           cancelSignal <- Ref.of[IO, Boolean](false)
           passwordQueue <- PasswordQueue.create[IO]
-          _ <- decryptForever(12, client, token, cancelSignal, passwordQueue)(timer)
+          _ <- decryptForever(24, client, token, cancelSignal, passwordQueue)(timer)
         } yield ExitCode.Success
       }(_.shutdown)
 

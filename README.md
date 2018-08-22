@@ -34,7 +34,7 @@ that is not purely functional is cheating too. So make sure any effects are cont
 
 If you're stuck:
 ```
-git checkout cats-effect-process
+git checkout cats-effect-process-step2
 ```
 
 #### Work parallelization
@@ -53,7 +53,7 @@ For now we care for speed!
 
 If you're stuck:
 ```
-git checkout cats-effect-parallel
+git checkout cats-effect-parallel-step3
 ```
 
 #### Error handling
@@ -84,7 +84,7 @@ which could serve as a signal telling us whether we should keep going. This coul
 
 If you're stuck:
 ```
-git checkout cats-effect-error
+git checkout cats-effect-error-step4
 ```
 
 #### Squeezing more performance
@@ -101,5 +101,5 @@ Sometimes HTTP call won't be necessary.
 
 If you're stuck:
 ```
-git checkout cats-effect-complete
+git checkout cats-effect-complete-step-5
 ```

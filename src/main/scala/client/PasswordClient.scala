@@ -27,7 +27,7 @@ object PasswordClient {
       }
 
       override def requestPassword(token: Token): IO[EncryptedPassword] = {
-        val req = POST(uri("http://async-in-2018.herokuapp.com/end-encrypted-password"), token.asJson)
+        val req = POST(uri("http://async-in-2018.herokuapp.com/send-encrypted-password"), token.asJson)
         httpClient.expect(req)(jsonOf[IO, EncryptedPassword])
       }
 

@@ -1,11 +1,12 @@
 package coroutines.workshop
 
 import Decrypter
-import kotlinx.coroutines.experimental.*
-import kotlinx.coroutines.experimental.channels.Channel
+import kotlinx.coroutines.experimental.DefaultDispatcher
+import kotlinx.coroutines.experimental.Job
 import kotlinx.coroutines.experimental.channels.ReceiveChannel
 import kotlinx.coroutines.experimental.channels.SendChannel
-import kotlinx.coroutines.experimental.channels.produce
+import kotlinx.coroutines.experimental.newFixedThreadPoolContext
+import kotlinx.coroutines.experimental.runBlocking
 import kotlin.coroutines.experimental.CoroutineContext
 
 // Class representing finished decryption.
@@ -20,7 +21,7 @@ val executor: CoroutineContext by lazy {
 fun main(args: Array<String>) = runBlocking {
     val api = Api(url = "http://localhost:9000", context = DefaultDispatcher) // remember to change `localhost` to proper url
 
-    val token = api.register(Register("Władimir Iljicz Kotlin")).await().token
+    val token = api.register(Register("Władimir Iljicz Kotlin", "Kotlin")).await().token
 
     val reset = suspend {
         TODO("You may use this stub in step 3")

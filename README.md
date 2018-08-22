@@ -9,7 +9,7 @@ We will build distributed system for decrypting hashed passwords. Input data - e
 
 Whole workshop is divided into few self-sufficient sections. We will start with most basic prototype, and will try to gradually make it more efficient and less error prone.
 
-Introduction can be found [here]().
+[Presentation](https://kordyjan.github.io/coroutines-ws-page/)
 
 In case of big trouble connecting to server/leaderboard you can use [zipped instance](/local-server/workshop-server-1.0.4.zip) to try your code locally. To do so just unpack zip, run bin/workshop-server and use localhost as host-name. 
 

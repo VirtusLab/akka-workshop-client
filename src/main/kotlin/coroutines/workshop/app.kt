@@ -6,7 +6,6 @@ import kotlinx.coroutines.experimental.channels.Channel
 import kotlinx.coroutines.experimental.channels.ReceiveChannel
 import kotlinx.coroutines.experimental.channels.SendChannel
 import kotlinx.coroutines.experimental.channels.produce
-import kotlinx.coroutines.experimental.selects.select
 import kotlin.coroutines.experimental.CoroutineContext
 
 // Class representing finished decryption.
@@ -21,7 +20,7 @@ val executor: CoroutineContext by lazy {
 fun main(args: Array<String>) = runBlocking {
     val api = Api(url = "http://localhost:9000", context = DefaultDispatcher) // remember to change `localhost` to proper url
 
-    val token = api.register(Register("Władimir Iljicz Kotlin")).await().token
+    val token = api.register(Register("Władimir Iljicz Kotlin", "Kotlin")).await().token
 
     val newPasswords = api.passwords(token)
 

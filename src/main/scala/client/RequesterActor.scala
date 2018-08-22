@@ -20,7 +20,7 @@ class RequesterActor extends Actor with ActorLogging {
   }
 
   override def preStart() =
-    remote.requestToken(Register(name)).pipeTo(self)
+    remote.requestToken(name).pipeTo(self)
 
   override def receive: Receive = starting
 

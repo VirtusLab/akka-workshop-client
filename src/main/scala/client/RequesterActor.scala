@@ -4,7 +4,9 @@ import akka.actor.Actor
 import com.virtuslab.akkaworkshop.Decrypter
 import com.virtuslab.akkaworkshop.PasswordsDistributor._
 
-class RequesterActor(passwordClient: PasswordClient) extends Actor {
+class RequesterActor() extends Actor {
+
+  val passwordClient: PasswordClient = new PasswordClient()(context.system)
 
   val decrypter = new Decrypter
 
@@ -16,7 +18,7 @@ class RequesterActor(passwordClient: PasswordClient) extends Actor {
   }
 
   override def preStart(): Unit = {
-    // TODO Register yourself by sending Register("your nick") - passwordClient.requestToken(...)
+    // TODO Register yourself by sending "your nick" - passwordClient.requestToken(...)
     // HINT: Use pipeTo pattern (remember about execution context - context.dispatcher can be used)
     // https://doc.akka.io/docs/akka/2.5.5/scala/actors.html#ask-send-and-receive-future
     // send this token back to yourself - use `self` reference

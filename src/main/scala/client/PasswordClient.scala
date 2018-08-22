@@ -16,13 +16,13 @@ class PasswordClient()(implicit actorSystem: ActorSystem) extends JsonSupport {
 
   private val http = Http()
 
-  def requestToken(register: Register): Future[Registered] = {
+  def requestToken(nick: String): Future[Registered] = {
     http
       .singleRequest(
         HttpRequest(
           HttpMethods.POST,
-          "http://localhost:9000/register",
-          entity = HttpEntity(ContentTypes.`application/json`, register.toJson.toString())
+          "http://async-in-2018.herokuapp.com/register",
+          entity = HttpEntity(ContentTypes.`application/json`, Register(nick, "AKKA").toJson.toString())
         )
       )
       .flatMap(r => Unmarshaller.stringUnmarshaller(r.entity).map(_.asJson.convertTo[Registered]))
@@ -33,7 +33,7 @@ class PasswordClient()(implicit actorSystem: ActorSystem) extends JsonSupport {
       .singleRequest(
         HttpRequest(
           HttpMethods.POST,
-          "http://localhost:9000/send-encrypted-password",
+          "http://async-in-2018.herokuapp.com/send-encrypted-password",
           entity = HttpEntity(ContentTypes.`application/json`, sendMeEncryptedPassword.toJson.toString())
         )
       )
@@ -45,7 +45,7 @@ class PasswordClient()(implicit actorSystem: ActorSystem) extends JsonSupport {
       .singleRequest(
         HttpRequest(
           HttpMethods.POST,
-          "http://localhost:9000/validate",
+          "http://async-in-2018.herokuapp.com/validate",
           entity = HttpEntity(ContentTypes.`application/json`, validatePassword.toJson.toString())
         )
       )
@@ -58,7 +58,7 @@ class PasswordClient()(implicit actorSystem: ActorSystem) extends JsonSupport {
 }
 
 trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
-  implicit val registerFormat: JsonFormat[Register]                               = jsonFormat1(Register)
+  implicit val registerFormat: JsonFormat[Register]                               = jsonFormat2(Register)
   implicit val registeredFormat: JsonFormat[Registered]                           = jsonFormat1(Registered)
   implicit val sendMeEncryptedPasswordFormat: JsonFormat[SendMeEncryptedPassword] = jsonFormat1(SendMeEncryptedPassword)
   implicit val encryptedPasswordFormat: JsonFormat[EncryptedPassword]             = jsonFormat1(EncryptedPassword)

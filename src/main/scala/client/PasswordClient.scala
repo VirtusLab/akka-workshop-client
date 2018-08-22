@@ -22,18 +22,18 @@ object PasswordClient {
   def create(httpClient: Client[IO]): PasswordClient[IO] =
     new PasswordClient[IO](httpClient) {
       override def requestToken(userName: String): IO[Token] = {
-        val req = POST(uri("http://localhost:9000/register"), User(userName).asJson)
+        val req = POST(uri("http://async-in-2018.herokuapp.com/register"), User(userName).asJson)
         httpClient.expect(req)(jsonOf[IO, Token])
       }
 
       override def requestPassword(token: Token): IO[EncryptedPassword] = {
-        val req = POST(uri("http://localhost:9000/send-encrypted-password"), token.asJson)
+        val req = POST(uri("http://async-in-2018.herokuapp.com/end-encrypted-password"), token.asJson)
         httpClient.expect(req)(jsonOf[IO, EncryptedPassword])
       }
 
       override def validatePassword(token: Token, encryptedPassword: String, decryptedPassword: String): IO[Status] = {
         val result = ValidatePassword(token.token, encryptedPassword, decryptedPassword)
-        val req = POST(uri("http://localhost:9000/validate"), result.asJson)
+        val req = POST(uri("http://async-in-2018.herokuapp.com/validate"), result.asJson)
         httpClient.status(req)
       }
     }

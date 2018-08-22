@@ -19,19 +19,19 @@ object PasswordClient {
   }
 
   def requestToken(userName: String)(implicit httpClient: Client[Task]): Task[Token] = {
-    val req = POST(uri("http://localhost:9000/register"), User(userName).asJson)
+    val req = POST(uri("http://async-in-2018.herokuapp.com/register"), User(userName).asJson)
     httpClient.expect(req)(jsonOf[Task, Token])
   }
 
   def requestPassword(token: Token)(implicit httpClient: Client[Task]): Task[EncryptedPassword] = {
-    val req: Task[Request[Task]] = POST(uri("http://localhost:9000/send-encrypted-password"), token.asJson)
+    val req: Task[Request[Task]] = POST(uri("http://async-in-2018.herokuapp.com/send-encrypted-password"), token.asJson)
     httpClient.expect(req)(jsonOf[Task, EncryptedPassword])
   }
 
   def validatePassword(token: Token, encryptedPassword: String, decryptedPassword: String)
                       (implicit httpClient: Client[Task]): Task[Status] = {
     val result = ValidatePassword(token.token, encryptedPassword, decryptedPassword)
-    val req: Task[Request[Task]] = POST(uri("http://localhost:9000/validate"), result.asJson)
+    val req: Task[Request[Task]] = POST(uri("http://async-in-2018.herokuapp.com/validate"), result.asJson)
     httpClient.status(req)
   }
 }

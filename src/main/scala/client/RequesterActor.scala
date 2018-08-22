@@ -20,8 +20,8 @@ class RequesterActor(remote: PasswordClient) extends Actor with ActorLogging {
       .props(Worker.props)
   )
 
-  override def preStart(): Unit =
-    remote.requestToken(Register(name)).pipeTo(self)
+  override def preStart() =
+    remote.requestToken(name).pipeTo(self)
 
   override def receive: Receive = starting
 

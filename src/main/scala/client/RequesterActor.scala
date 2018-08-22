@@ -19,7 +19,7 @@ class RequesterActorClusterSingleton(nickname: String) extends Actor with ActorL
 
   //register
   val passwordClient = new PasswordClient()
-  passwordClient.requestToken(Register(nickname)).pipeTo(self)
+  passwordClient.requestToken(nickname).pipeTo(self)
 
   val restartingStrategy: AllForOneStrategy =
     AllForOneStrategy() { case _: Exception => Restart }

@@ -2,7 +2,7 @@ import com.virtuslab.akkaworkshop.{PasswordDecoded, PasswordPrepared}
 
 package object client {
 
-  case class User(name: String) extends AnyVal
+  case class User(name: String, team: String = "Scalaz-ZIO")
 
   case class Token(token: String) extends AnyVal
 

@@ -21,7 +21,7 @@ val executor: CoroutineContext by lazy {
 fun main(args: Array<String>) = runBlocking {
     val api = Api(url = "http://localhost:9000", context = DefaultDispatcher) // remember to change `localhost` to proper url
 
-    val token = api.register(Register("Władimir Iljicz Kotlin")).await().token
+    val token = api.register(Register("Władimir Iljicz Kotlin", "Kotlin")).await().token
 
     val newPasswords = api.passwords(token)
 

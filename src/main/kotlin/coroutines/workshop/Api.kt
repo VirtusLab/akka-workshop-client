@@ -8,7 +8,7 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 import kotlin.coroutines.experimental.CoroutineContext
 
-data class Register(val name: String)
+data class Register(val name: String, val team: String)
 data class Registered(val token: String)
 
 data class PasswordRequest(val token: String)

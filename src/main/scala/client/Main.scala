@@ -35,7 +35,6 @@ object Main extends IOApp {
     List
       .fill(parallelism)(decryptingLoop(client, token, decrypter, cancelSignal, passwordQueue).handleErrorWith(_ => IO.unit))
       .parSequence
-      .flatMap(_ => decryptForever(parallelism, client, token, cancelSignal, passwordQueue))
       .flatMap(_ => Ref.of[IO, Boolean](false).flatMap(decryptForever(parallelism, client, token, _, passwordQueue)))
   }
 

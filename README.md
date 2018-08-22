@@ -18,9 +18,9 @@ They contain few `Cats-Effect` examples that might prove helpful when trying to 
 #### Connect and register 
 [Presentation](https://slides.com/avasil/asynchronous-programming-in-late-2018-cats-effect/fullscreen#/5)
 
-All you have to do is provide your name and change the host to the one provided at the workshop, HTTP skeleton is already provided.
+All you have to do is provide your name, HTTP skeleton is already provided.
 
-Once correctly registered your name should appear at our leader board (at host-name:9000/?mode=remote)
+Once correctly registered your name should appear at our leader board (at http://async-in-2018.herokuapp.com/?mode=remote)
 
 ![](leaderboard.png)
 
@@ -40,7 +40,7 @@ git checkout cats-effect-process
 #### Work parallelization
 [Presentation](https://slides.com/avasil/asynchronous-programming-in-late-2018-cats-effect/fullscreen#/7)
 
-Now we care more about speed of processing. To measure this we need to use different mode of leader board: host-name:9000/?mode=parallel
+Now we care more about speed of processing. To measure this we need to use different mode of leader board: http://async-in-2018.herokuapp.com/?mode=parallel
 
 If we can't speed up decrypting process we can do it parallel. 
 Best place to start is [Cats-effect documentation](https://typelevel.org/cats-effect/datatypes/io.html#parallelism).
@@ -61,7 +61,7 @@ git checkout cats-effect-parallel
 
 This is time to focus also on correctness of your decryption (dealing with `Decrypter` problems to be more precise).
 
-It is time to finally use full leader board: <host-name>:9000
+It is time to finally use full leader board: `http://async-in-2018.herokuapp.com`
 
 I assume that your are able to recover from exceptions now but did you measure error rates?
 
